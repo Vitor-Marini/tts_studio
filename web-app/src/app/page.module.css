@@ -1,7 +1,7 @@
 .appContainer {
   display: flex;
   height: 100vh;
-  width: 100vw;
+  width: 100%;
   overflow: hidden;
 }
 
@@ -80,9 +80,11 @@
 .mainContent {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   background: radial-gradient(circle at top right, #1f1f1f, var(--bg-primary));
-  padding: 2.5rem 3rem;
+  padding: 1.25rem 2rem;
   position: relative;
+  min-width: 0;
 }
 
 .mainContent::before {
@@ -112,43 +114,44 @@
 }
 
 .panelHeader {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .panelHeader h2 {
-  font-size: 2.2rem;
-  margin-bottom: 0.5rem;
+  font-size: 1.7rem;
+  margin-bottom: 0.3rem;
   letter-spacing: -0.02em;
 }
 
 .panelHeader p {
   color: var(--text-secondary);
-  font-size: 1.05rem;
+  font-size: 0.95rem;
 }
 
 .layoutGrid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 2rem;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 1.5rem;
   align-items: start;
 }
 
 .leftCol, .rightCol {
-  padding: 1.5rem 2rem;
+  padding: 1.25rem 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
+  min-width: 0;
 }
 
 .scrollableCol {
-  max-height: calc(100vh - 180px);
+  max-height: calc(100vh - 110px);
   overflow-y: auto;
 }
 
 .formGroup {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.45rem;
 }
 
 .formGroup label {
@@ -181,6 +184,30 @@
   color: var(--text-secondary);
   font-size: 0.9rem;
   font-style: italic;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loadingRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-style: normal;
+  text-align: left;
 }
 
 .sectionTitle {
@@ -314,4 +341,191 @@
 .downloadBtn:hover {
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.3);
+}
+
+.audioListWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.audioListHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px 12px 0 0;
+}
+
+.audioListTitle {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.audioListActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.audioBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.audioBtn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.audioList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 0.75rem;
+}
+
+.audioItem {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 0.6rem 0.9rem;
+  transition: all 0.2s;
+}
+
+.audioItem:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.audioItemSelected {
+  border-color: var(--accent-primary);
+  background: rgba(255, 107, 0, 0.06);
+  box-shadow: 0 0 0 1px rgba(255, 107, 0, 0.25), 0 4px 16px rgba(255, 107, 0, 0.08);
+}
+
+.audioItemBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.audioNameRow {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 1.3rem;
+  padding-left: 0.15rem;
+}
+
+.audioName {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.2s;
+}
+
+.audioName:hover {
+  color: var(--text-primary);
+}
+
+.audioNameInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0.2rem 0.5rem;
+  background: var(--bg-primary);
+  border: 1px solid rgba(255, 107, 0, 0.5);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.audioNameAction {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 0.8rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+.audioNameActionVisible {
+  opacity: 1;
+}
+
+.audioItem:hover .audioNameAction {
+  opacity: 1;
+}
+
+.audioNameAction:hover {
+  color: var(--accent-primary);
+}
+
+.audioCheckbox {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.audioCheckbox:hover {
+  transform: scale(1.1);
+}
+
+.audioItem .customPlayer {
+  padding: 0.65rem 0.75rem;
+  gap: 0.85rem;
+  border: none;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+
+.audioItem .playBtn {
+  width: 40px;
+  height: 40px;
+  box-shadow: 0 3px 10px rgba(255, 107, 0, 0.25);
+}
+
+.audioItem .playBtn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.audioItem .downloadBtn {
+  padding: 0.45rem 0.8rem;
+  font-size: 0.8rem;
 }
