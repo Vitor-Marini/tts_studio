@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef } from 'react';
 import styles from './page.module.css';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 const FALLBACK_PRESETS = {
   'Default preset': {
     nome: "Default preset",
@@ -31,14 +33,14 @@ export default function Home() {
   const [voices, setVoices] = useState<string[]>(['ADA']);
 
   const fetchPresets = () => {
-    fetch('http://localhost:8000/api/presets')
+    fetch(`${API_URL}/api/presets`)
       .then(res => res.json())
       .then(data => { if (Object.keys(data).length > 0) setPresets(data); })
       .catch(() => console.log("Backend offline. Usando Fallback para presets."));
   };
 
   const fetchVoices = () => {
-    fetch('http://localhost:8000/api/voices')
+    fetch(`${API_URL}/api/voices`)
       .then(res => res.json())
       .then(data => { if (data.voices) setVoices(data.voices); }) // sempre sobrescreve, mesmo lista vazia
       .catch(() => console.log("Backend offline, sem vozes carregadas."));
@@ -286,7 +288,7 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
   const handleSaveNewPreset = async (name: string) => {
     try {
       const payload = { name, temperature, speed, length_penalty: lengthPenalty, repetition_penalty: repetitionPenalty, top_k: topK, top_p: topP, use_fixed_seed: useFixedSeed, seed, split_sentences: splitSentences, format, bitrate };
-      const response = await fetch("http://localhost:8000/api/presets", {
+      const response = await fetch(`${API_URL}/api/presets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -326,7 +328,7 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
             format,
             bitrate
         };
-        const response = await fetch("http://localhost:8000/api/tts", {
+        const response = await fetch(`${API_URL}/api/tts`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
@@ -406,7 +408,7 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
   const handleDownloadAllZip = async () => {
     if (audios.length === 0) return;
     try {
-      const response = await fetch("http://localhost:8000/api/audio/zip", {
+      const response = await fetch(`${API_URL}/api/audio/zip`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(audios.map(a => ({ filename: a.serverFile, name: a.name })))
@@ -684,7 +686,7 @@ function ClonePanel({ onCloned }: { onCloned: () => void }) {
     formData.append("file", file);
 
     try {
-      const res = await fetch("http://localhost:8000/api/clone", {
+      const res = await fetch(`${API_URL}/api/clone`, {
         method: "POST",
         body: formData
       });
@@ -830,7 +832,7 @@ function ResourceCard({ name, type, presetData, onChanged }: ResourceCardProps) 
     if (!newName.trim() || newName.trim() === name) { setMode('idle'); return; }
     setIsLoading(true); setError('');
     try {
-      const res = await fetch(`http://localhost:8000/api/${type}/${encodeURIComponent(name)}`, {
+      const res = await fetch(`${API_URL}/api/${type}/${encodeURIComponent(name)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ new_name: newName.trim() })
@@ -844,7 +846,7 @@ function ResourceCard({ name, type, presetData, onChanged }: ResourceCardProps) 
   const handleDelete = async () => {
     setIsLoading(true); setError('');
     try {
-      const res = await fetch(`http://localhost:8000/api/${type}/${encodeURIComponent(name)}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/api/${type}/${encodeURIComponent(name)}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) { setError(data.detail || 'Erro ao deletar'); setIsLoading(false); return; }
       onChanged();
@@ -862,7 +864,7 @@ function ResourceCard({ name, type, presetData, onChanged }: ResourceCardProps) 
   const handleSaveParams = async () => {
     setIsLoading(true); setError('');
     try {
-      const res = await fetch(`http://localhost:8000/api/presets/${encodeURIComponent(name)}`, {
+      const res = await fetch(`${API_URL}/api/presets/${encodeURIComponent(name)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editParams)
@@ -1003,8 +1005,8 @@ function ManagePanel({ onChanged }: { onChanged: () => void }) {
   const refresh = () => {
     setLoading(true);
     Promise.all([
-      fetch('http://localhost:8000/api/voices').then(r => r.json()),
-      fetch('http://localhost:8000/api/presets').then(r => r.json()),
+      fetch(`${API_URL}/api/voices`).then(r => r.json()),
+      fetch(`${API_URL}/api/presets`).then(r => r.json()),
     ]).then(([v, p]) => {
       setVoices(v.voices || []);
       setPresets(p || {});

@@ -1,4 +1,3 @@
-import sys
 import os
 import io
 import json
@@ -7,7 +6,7 @@ import datetime
 import zipfile
 from pathlib import Path
 from typing import List
-from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
@@ -27,11 +26,6 @@ def safe_torch_load(*args, **kwargs):
     return original_torch_load(*args, **kwargs)
 torch.load = safe_torch_load
 
-# Adicionando o diretório original para poder importar scripts.tts_funcs
-XTTS_WEBUI_DIR = "/home/vitorsynkar/codes/tts/webui/xtts-webui"
-if XTTS_WEBUI_DIR not in sys.path:
-    sys.path.append(XTTS_WEBUI_DIR)
-
 from scripts.tts_funcs import TTSWrapper
 
 app = FastAPI(title="XTTS Production API", version="1.0.0")
@@ -48,6 +42,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PRESETS_DIR = os.path.join(BASE_DIR, "presets")
 VOICES_DIR = os.path.join(BASE_DIR, "voices")
 OUTPUT_DIR = os.path.join(BASE_DIR, "outputs")
+MODELS_DIR = os.path.join(BASE_DIR, "models")
 
 os.makedirs(PRESETS_DIR, exist_ok=True)
 os.makedirs(VOICES_DIR, exist_ok=True)
@@ -99,7 +94,7 @@ XTTS = TTSWrapper(
 )
 
 print(f"Loading XTTS Model {MODEL_VERSION} on {DEVICE}...")
-XTTS.load_model(Path(XTTS_WEBUI_DIR))
+XTTS.load_model(Path(BASE_DIR))
 print("Model loaded successfully!")
 
 
@@ -181,7 +176,7 @@ async def save_preset(req: PresetRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/tts")
-async def generate_tts(req: TTSRequest):
+async def generate_tts(req: TTSRequest, request: Request):
     try:
         if req.use_fixed_seed:
             torch.manual_seed(req.seed)
@@ -247,7 +242,7 @@ async def generate_tts(req: TTSRequest):
             
             # Passamos o caminho absoluto do .wav diretamente
             XTTS.process_tts_to_file(
-                this_dir=Path(XTTS_WEBUI_DIR),
+                this_dir=Path(BASE_DIR),
                 text=req.text,
                 language=req.language,
                 ref_speaker_wav=speaker_wav,
@@ -269,7 +264,7 @@ async def generate_tts(req: TTSRequest):
 
         return {
             "status": "success", 
-            "audio_url": f"http://localhost:8000/api/audio/{output_filename}",
+            "audio_url": f"{request.base_url}api/audio/{output_filename}",
         }
     except HTTPException:
         raise
