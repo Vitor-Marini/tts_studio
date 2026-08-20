@@ -19,9 +19,15 @@ const FALLBACK_PRESETS = {
   }
 };
 
+type GeneratedAudio = { serverFile: string; name: string; url: string };
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'tts' | 'clone' | 'manage'>('tts');
   const [presets, setPresets] = useState<Record<string, any>>(FALLBACK_PRESETS);
+  const [audios, setAudios] = useState<GeneratedAudio[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [editingKey, setEditingKey] = useState<string>("");
+  const [draftName, setDraftName] = useState("");
   const [voices, setVoices] = useState<string[]>(['ADA']);
 
   const fetchPresets = () => {
@@ -63,7 +69,7 @@ export default function Home() {
         </nav>
       </aside>
       <main className={styles.mainContent}>
-        {activeTab === 'tts' && <TTSPanel presets={presets} voices={voices} onSavePreset={fetchPresets} />}
+        {activeTab === 'tts' && <TTSPanel presets={presets} voices={voices} onSavePreset={fetchPresets} audios={audios} setAudios={setAudios} selected={selected} setSelected={setSelected} editingKey={editingKey} setEditingKey={setEditingKey} draftName={draftName} setDraftName={setDraftName} />}
         {activeTab === 'clone' && <ClonePanel onCloned={fetchVoices} />}
         {activeTab === 'manage' && <ManagePanel onChanged={() => { fetchVoices(); fetchPresets(); }} />}
       </main>
@@ -222,7 +228,7 @@ function SavePresetModal({ onSave, onClose, currentParams }: { onSave: (name: st
   );
 }
 
-function TTSPanel({ presets, voices, onSavePreset }: { presets: Record<string, any>, voices: string[], onSavePreset: () => void }) {
+function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, setSelected, editingKey, setEditingKey, draftName, setDraftName }: { presets: Record<string, any>, voices: string[], onSavePreset: () => void, audios: GeneratedAudio[], setAudios: React.Dispatch<React.SetStateAction<GeneratedAudio[]>>, selected: Set<string>, setSelected: React.Dispatch<React.SetStateAction<Set<string>>>, editingKey: string, setEditingKey: React.Dispatch<React.SetStateAction<string>>, draftName: string, setDraftName: React.Dispatch<React.SetStateAction<string>> }) {
   const [text, setText] = useState("");
   const [activePreset, setActivePreset] = useState("Default preset");
   const [selectedVoice, setSelectedVoice] = useState("ADA");
@@ -242,10 +248,6 @@ function TTSPanel({ presets, voices, onSavePreset }: { presets: Record<string, a
 
   // Estado da geração
   const [isGenerating, setIsGenerating] = useState(false);
-  const [audios, setAudios] = useState<{ serverFile: string; name: string; url: string }[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [editingKey, setEditingKey] = useState<string>("");
-  const [draftName, setDraftName] = useState("");
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
   const [genElapsed, setGenElapsed] = useState(0);
