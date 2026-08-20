@@ -1,3 +1,6 @@
 voices/
 presets/
 outputs/
+models/
+venv/
+.vscode/
