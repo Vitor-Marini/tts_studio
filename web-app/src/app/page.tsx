@@ -3,8 +3,8 @@ import { useState, useEffect, useRef } from 'react';
 import styles from './page.module.css';
 
 const FALLBACK_PRESETS = {
-  ADA: {
-    nome: "Voz ADA (Produto)",
+  'Default preset': {
+    nome: "Default preset",
     temperatura: 0.2,
     velocidade: 1.0,
     comprimento_penalidade: -3.5,
@@ -71,7 +71,7 @@ export default function Home() {
   );
 }
 
-function CustomPlayer({ src }: { src: string }) {
+function CustomPlayer({ src, fileName, autoPlay = false }: { src: string; fileName?: string; autoPlay?: boolean }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState("0:00");
@@ -79,11 +79,11 @@ function CustomPlayer({ src }: { src: string }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    if (audioRef.current) {
+    if (autoPlay && audioRef.current) {
       audioRef.current.play().catch(e => console.log(e));
       setIsPlaying(true);
     }
-  }, [src]);
+  }, [src, autoPlay]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
@@ -124,6 +124,27 @@ function CustomPlayer({ src }: { src: string }) {
     audioRef.current.currentTime = pos * audioRef.current.duration;
   };
 
+  const handleDownload = async () => {
+    try {
+      const response = await fetch(src);
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const extMatch = src.match(/\.(mp3|wav|ogg|flac)(\?|$)/i);
+      const ext = extMatch ? extMatch[1].toLowerCase() : (blob.type.includes('mpeg') ? 'mp3' : 'wav');
+      a.download = fileName || ('voz_gerada.' + ext);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert("Falha ao baixar o áudio.");
+    }
+  };
+
   return (
     <div className={styles.customPlayer}>
       <audio 
@@ -153,10 +174,10 @@ function CustomPlayer({ src }: { src: string }) {
         </div>
       </div>
 
-      <a href={src} download="voz_gerada.wav" className={styles.downloadBtn}>
+      <button onClick={handleDownload} className={styles.downloadBtn}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
         Baixar
-      </a>
+      </button>
     </div>
   );
 }
@@ -203,7 +224,7 @@ function SavePresetModal({ onSave, onClose, currentParams }: { onSave: (name: st
 
 function TTSPanel({ presets, voices, onSavePreset }: { presets: Record<string, any>, voices: string[], onSavePreset: () => void }) {
   const [text, setText] = useState("");
-  const [activePreset, setActivePreset] = useState("ADA");
+  const [activePreset, setActivePreset] = useState("Default preset");
   const [selectedVoice, setSelectedVoice] = useState("ADA");
   
   // Parâmetros
@@ -221,9 +242,19 @@ function TTSPanel({ presets, voices, onSavePreset }: { presets: Record<string, a
 
   // Estado da geração
   const [isGenerating, setIsGenerating] = useState(false);
-  const [audioUrl, setAudioUrl] = useState("");
+  const [audios, setAudios] = useState<{ serverFile: string; name: string; url: string }[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [editingKey, setEditingKey] = useState<string>("");
+  const [draftName, setDraftName] = useState("");
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
+  const [genElapsed, setGenElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!isGenerating) return;
+    const interval = setInterval(() => setGenElapsed(e => e + 1), 1000);
+    return () => clearInterval(interval);
+  }, [isGenerating]);
 
   const applyPreset = (presetKey: string) => {
     const p = presets[presetKey];
@@ -244,7 +275,8 @@ function TTSPanel({ presets, voices, onSavePreset }: { presets: Record<string, a
   };
 
   useEffect(() => {
-    if (presets['ADA']) applyPreset('ADA');
+    if (presets['Default preset']) applyPreset('Default preset');
+    else if (Object.keys(presets).length > 0) applyPreset(Object.keys(presets)[0]);
     if (voices.includes('ADA')) setSelectedVoice('ADA');
     else if (voices.length > 0) setSelectedVoice(voices[0]);
   }, [presets, voices]);
@@ -273,8 +305,8 @@ function TTSPanel({ presets, voices, onSavePreset }: { presets: Record<string, a
 
   const handleGenerate = async () => {
     if (!text.trim()) return alert("Digite um texto!");
+    setGenElapsed(0);
     setIsGenerating(true);
-    setAudioUrl("");
     try {
         const payload = {
             text,
@@ -299,7 +331,8 @@ function TTSPanel({ presets, voices, onSavePreset }: { presets: Record<string, a
         });
         const data = await response.json();
         if (data.audio_url) {
-            setAudioUrl(data.audio_url);
+            const serverFile = data.audio_url.split('/').pop() || 'audio';
+            setAudios(prev => [...prev, { serverFile, name: serverFile, url: data.audio_url }]);
         } else {
             alert("Falha na geração: " + JSON.stringify(data));
         }
@@ -311,11 +344,97 @@ function TTSPanel({ presets, voices, onSavePreset }: { presets: Record<string, a
     }
   };
 
+  const toggleSelect = (serverFile: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(serverFile)) next.delete(serverFile); else next.add(serverFile);
+      return next;
+    });
+  };
+
+  const startEdit = (audio: { serverFile: string; name: string }) => {
+    setEditingKey(audio.serverFile);
+    setDraftName(audio.name);
+  };
+
+  const commitRename = () => {
+    if (!editingKey) return;
+    const trimmed = draftName.trim();
+    setAudios(prev => prev.map(a => {
+      if (a.serverFile !== editingKey) return a;
+      const ext = a.serverFile.includes('.') ? a.serverFile.substring(a.serverFile.lastIndexOf('.')) : '';
+      const finalName = trimmed || a.serverFile;
+      const finalWithExt = /\.\w+$/.test(finalName) ? finalName : finalName + ext;
+      return { ...a, name: finalWithExt };
+    }));
+    setEditingKey("");
+    setDraftName("");
+  };
+
+  const downloadUrl = async (url: string, name: string) => {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const blob = await response.blob();
+    const urlObj = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = urlObj;
+    const extMatch = url.match(/\.(mp3|wav|ogg|flac)(\?|$)/i);
+    const ext = extMatch ? extMatch[1].toLowerCase() : (blob.type.includes('mpeg') ? 'mp3' : 'wav');
+    a.download = name || ('audio.' + ext);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(urlObj);
+  };
+
+  const handleDownloadSelected = async () => {
+    const items = audios.filter(a => selected.has(a.serverFile));
+    if (items.length === 0) return alert("Selecione ao menos um áudio.");
+    for (let i = 0; i < items.length; i++) {
+      try {
+        await downloadUrl(items[i].url, items[i].name);
+        await new Promise(r => setTimeout(r, 400));
+      } catch (err) {
+        console.error(err);
+        alert("Falha ao baixar '" + items[i].name + "'.");
+      }
+    }
+  };
+
+  const handleDownloadAllZip = async () => {
+    if (audios.length === 0) return;
+    try {
+      const response = await fetch("http://localhost:8000/api/audio/zip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(audios.map(a => ({ filename: a.serverFile, name: a.name })))
+      });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const blob = await response.blob();
+      const urlObj = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = urlObj;
+      a.download = 'tts_audios.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(urlObj);
+    } catch (err) {
+      console.error(err);
+      alert("Falha ao baixar o ZIP.");
+    }
+  };
+
+  const clearList = () => { setAudios([]); setSelected(new Set()); setEditingKey(""); setDraftName(""); };
+
+  const genEstimate = Math.max(8, Math.round(text.trim().length * 0.8));
+  const genRemaining = Math.max(0, genEstimate - genElapsed);
+
   return (
     <div className={styles.panelWrapper}>
       <header className={styles.panelHeader}>
         <h2>Sintetizador de Texto</h2>
-        <p>Geração via XTTS Engine. Todos os parâmetros mapeados de forma fiel.</p>
+        <p>Geração via XTTS Engine.</p>
       </header>
       <div className={styles.layoutGrid}>
         <div className={`${styles.leftCol} glass-panel`}>
@@ -327,7 +446,7 @@ function TTSPanel({ presets, voices, onSavePreset }: { presets: Record<string, a
                 <label htmlFor="split" style={{textTransform: 'none', fontSize: '0.8rem'}}>Dividir Frases</label>
               </div>
             </div>
-            <textarea className="input-base" rows={12} value={text} onChange={(e) => setText(e.target.value)}></textarea>
+            <textarea className="input-base" rows={8} placeholder="Escreva aqui sua frase..." value={text} onChange={(e) => setText(e.target.value)}></textarea>
           </div>
           
           <div className={styles.actionRow}>
@@ -338,15 +457,83 @@ function TTSPanel({ presets, voices, onSavePreset }: { presets: Record<string, a
               <option value="128k">128k</option><option value="192k">192k</option>
             </select>
             <button className="btn-primary" style={{flex: 1}} onClick={handleGenerate} disabled={isGenerating}>
-              {isGenerating ? "Gerando..." : "Gerar Áudio XTTS"}
+              {isGenerating ? (
+                <><span className={styles.spinner} style={{width:16,height:16}}></span> Gerando...</>
+              ) : "Gerar Áudio"}
             </button>
           </div>
 
-          <div className={styles.playerContainer} style={{ padding: audioUrl ? '0' : '1.5rem', border: audioUrl ? 'none' : '' }}>
-             {audioUrl ? (
-                <CustomPlayer src={audioUrl} />
+          <div className={styles.playerContainer} style={{ padding: audios.length ? '0' : '1.5rem', border: audios.length ? 'none' : '', display: 'block' }}>
+             {audios.length > 0 ? (
+                <div className={styles.audioListWrap}>
+                  <div className={styles.audioListHeader}>
+                    <span className={styles.audioListTitle}>Áudios gerados ({audios.length})</span>
+                    <div className={styles.audioListActions}>
+                      <button onClick={handleDownloadSelected} className={styles.audioBtn}>Baixar selecionados</button>
+                      <button onClick={handleDownloadAllZip} className={styles.audioBtn}>Baixar todos (.zip)</button>
+                      <button onClick={clearList} className={styles.audioBtn}>Limpar lista</button>
+                    </div>
+                  </div>
+                  <div className={styles.audioList}>
+                    {audios.map(a => (
+                      <div
+                        key={a.serverFile}
+                        className={`${styles.audioItem}${selected.has(a.serverFile) ? ' ' + styles.audioItemSelected : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected.has(a.serverFile)}
+                          onChange={() => toggleSelect(a.serverFile)}
+                          className={styles.audioCheckbox}
+                          title="Selecionar para download"
+                        />
+                        <div className={styles.audioItemBody}>
+                          <div className={styles.audioNameRow}>
+                            {editingKey === a.serverFile ? (
+                              <>
+                                <input
+                                  autoFocus
+                                  className={styles.audioNameInput}
+                                  value={draftName}
+                                  onChange={e => setDraftName(e.target.value)}
+                                  onKeyDown={e => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') { setEditingKey(""); setDraftName(""); } }}
+                                  onBlur={commitRename}
+                                />
+                                <button className={`${styles.audioNameAction} ${styles.audioNameActionVisible}`} onClick={commitRename} title="Confirmar">✔</button>
+                                <button className={`${styles.audioNameAction} ${styles.audioNameActionVisible}`} onMouseDown={e => e.preventDefault()} onClick={() => { setEditingKey(""); setDraftName(""); }} title="Cancelar">✕</button>
+                              </>
+                            ) : (
+                              <>
+                                <span className={styles.audioName} title={a.name} onDoubleClick={() => startEdit(a)}>{a.name}</span>
+                                <button className={styles.audioNameAction} onClick={() => startEdit(a)} title="Renomear">✏️</button>
+                              </>
+                            )}
+                          </div>
+                          <CustomPlayer src={a.url} fileName={a.name} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {isGenerating && (
+                    <span className={styles.loadingRow} style={{ padding: '0.75rem' }}>
+                      <span className={styles.spinner}></span>
+                      <span>
+                        Gerando novo áudio... <strong>{genElapsed}s</strong> decorridos
+                        {genRemaining > 0 && <> · ~<strong>{genRemaining}s</strong> restantes (estimativa)</>}
+                      </span>
+                    </span>
+                  )}
+                </div>
+             ) : isGenerating ? (
+                <span className={styles.loadingRow}>
+                  <span className={styles.spinner}></span>
+                  <span>
+                    Processando no modelo... <strong>{genElapsed}s</strong> decorridos
+                    {genRemaining > 0 && <> · ~<strong>{genRemaining}s</strong> restantes (estimativa)</>}
+                  </span>
+                </span>
              ) : (
-                <span className={styles.playerPlaceholder}>{isGenerating ? "Processando no modelo..." : "Nenhum áudio gerado."}</span>
+                <span className={styles.playerPlaceholder}>Nenhum áudio gerado.</span>
              )}
           </div>
         </div>
@@ -431,12 +618,18 @@ function TTSPanel({ presets, voices, onSavePreset }: { presets: Record<string, a
 
           <div className={styles.grid2Col}>
              <div className={styles.formGroup}>
-                <label>Top K</label>
-                <input type="number" className="input-base" value={topK} onChange={(e) => setTopK(parseInt(e.target.value))} />
+                <div className={styles.labelRow}>
+                  <label>Top K</label>
+                  <input type="number" className={styles.numberInput} value={topK} step="1" onChange={(e) => setTopK(parseInt(e.target.value) || 0)} />
+                </div>
+                <input type="range" min="1" max="100" step="1" value={topK} onChange={(e) => setTopK(parseInt(e.target.value))} />
              </div>
              <div className={styles.formGroup}>
-                <label>Top P</label>
-                <input type="number" className="input-base" step="0.01" value={topP} onChange={(e) => setTopP(parseFloat(e.target.value))} />
+                <div className={styles.labelRow}>
+                  <label>Top P</label>
+                  <input type="number" className={styles.numberInput} value={topP} step="0.01" onChange={(e) => setTopP(parseFloat(e.target.value))} />
+                </div>
+                <input type="range" min="0.0" max="1.0" step="0.01" value={topP} onChange={(e) => setTopP(parseFloat(e.target.value))} />
              </div>
           </div>
 
@@ -483,7 +676,7 @@ function ClonePanel({ onCloned }: { onCloned: () => void }) {
     if (!voiceName) return setStatusMsg({ text: "⚠️ Dê um nome para a sua nova voz.", type: "error" });
 
     setIsCloning(true);
-    setStatusMsg({ text: "⏳ Processando embeddings vocais e salvando...", type: "info" });
+    setStatusMsg({ text: "⏳ Extraindo embeddings vocais e salvando o .pth...", type: "info" });
     const formData = new FormData();
     formData.append("voice_name", voiceName);
     formData.append("file", file);
@@ -495,7 +688,7 @@ function ClonePanel({ onCloned }: { onCloned: () => void }) {
       });
       const data = await res.json();
       if (data.status === 'success') {
-        setStatusMsg({ text: "✅ Voz processada com sucesso! A lista do Sintetizador foi atualizada.", type: "success" });
+        setStatusMsg({ text: "✅ Voz clonada! Embeddings salvos como .pth. A lista do Sintetizador foi atualizada.", type: "success" });
         setFile(null);
         setVoiceName("");
         onCloned(); // Atualiza as vozes em background na main tab!
@@ -547,8 +740,8 @@ function ClonePanel({ onCloned }: { onCloned: () => void }) {
 
            {fileUrl && (
              <div style={{marginTop: '1rem'}}>
-               <p style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase'}}>Preview da Voz:</p>
-               <CustomPlayer src={fileUrl} />
+<p style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase'}}>Preview da Voz:</p>
+                <CustomPlayer src={fileUrl} autoPlay />
              </div>
            )}
 
@@ -559,7 +752,7 @@ function ClonePanel({ onCloned }: { onCloned: () => void }) {
 
            <button className="btn-primary" style={{width: '100%', marginTop: '1rem'}} onClick={handleUpload} disabled={isCloning}>
              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-             {isCloning ? "Processando e Salvando..." : "Criar Nova Voz"}
+             {isCloning ? "Extraindo Embeddings..." : "Criar Nova Voz"}
            </button>
 
            {statusMsg.text && (
@@ -579,14 +772,15 @@ function ClonePanel({ onCloned }: { onCloned: () => void }) {
 
          <div className={`${styles.rightCol} glass-panel`}>
            <h3 className={styles.sectionTitle}>Como funciona a Clonagem?</h3>
-           <p className={styles.helperText}>
-             O modelo XTTS extrai os embeddings (latents) diretamente do arquivo de referência usando a técnica <i>Zero-Shot</i> sem precisar de fine-tuning intenso.
-           </p>
-           <ul style={{color: 'var(--text-secondary)', fontSize: '0.95rem', paddingLeft: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1rem'}}>
-             <li>Use amostras curtas: <strong>10 a 30 segundos</strong> de duração.</li>
-             <li>Evite ruídos: O áudio deve estar <strong>limpo</strong>, sem música de fundo ou eco para melhor absorção da estabilidade.</li>
-             <li>O arquivo será salvo na pasta <strong>voices/</strong> do seu servidor e ficará instantaneamente disponível no seletor de vozes da aba TTS.</li>
-           </ul>
+<p className={styles.helperText}>
+              O modelo XTTS extrai os embeddings (latents) da voz diretamente do áudio de referência usando a técnica <i>Zero-Shot</i>, sem fine-tuning. Esses embeddings são salvos em um arquivo <strong>.pth</strong> — o áudio original não é armazenado.
+            </p>
+            <ul style={{color: 'var(--text-secondary)', fontSize: '0.95rem', paddingLeft: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1rem'}}>
+              <li>Use amostras curtas: <strong>10 a 30 segundos</strong> de duração.</li>
+              <li>Evite ruídos: O áudio deve estar <strong>limpo</strong>, sem música de fundo ou eco, para uma extração de embeddings mais estável.</li>
+              <li>Somente os embeddings são salvos como um arquivo <strong>.pth</strong> no servidor — o áudio de amostra é descartado (privacidade e economia de espaço).</li>
+              <li>A voz fica instantaneamente disponível no seletor de vozes da aba <strong>TTS</strong> e pode ser usada na geração.</li>
+            </ul>
          </div>
       </div>
     </div>
@@ -602,12 +796,29 @@ type ResourceType = 'voices' | 'presets';
 interface ResourceCardProps {
   name: string;
   type: ResourceType;
+  presetData?: Record<string, any>;
   onChanged: () => void;
 }
 
-function ResourceCard({ name, type, onChanged }: ResourceCardProps) {
-  const [mode, setMode] = useState<'idle' | 'rename' | 'confirm-delete'>('idle');
+const PARAM_FIELDS = [
+  { key: 'temperatura', label: 'Temperatura', min: 0, max: 1, step: 0.05, int: false },
+  { key: 'velocidade', label: 'Velocidade', min: 0.5, max: 2, step: 0.1, int: false },
+  { key: 'repeticao_penalidade', label: 'Rep. Penalidade', min: 1, max: 10, step: 0.5, int: false },
+  { key: 'comprimento_penalidade', label: 'Comp. Penalidade', min: -5, max: 5, step: 0.5, int: false },
+  { key: 'top_k', label: 'Top K', min: 1, max: 100, step: 1, int: true },
+  { key: 'top_p', label: 'Top P', min: 0, max: 1, step: 0.01, int: false },
+];
+
+const fieldInputStyle: React.CSSProperties = {
+  width: '64px', padding: '0.2rem 0.4rem', background: 'var(--bg-primary)',
+  border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--accent-primary)',
+  fontWeight: 'bold', textAlign: 'center', fontSize: '0.8rem', outline: 'none',
+};
+
+function ResourceCard({ name, type, presetData, onChanged }: ResourceCardProps) {
+  const [mode, setMode] = useState<'idle' | 'rename' | 'confirm-delete' | 'edit'>('idle');
   const [newName, setNewName] = useState(name);
+  const [editParams, setEditParams] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -634,6 +845,29 @@ function ResourceCard({ name, type, onChanged }: ResourceCardProps) {
       const res = await fetch(`http://localhost:8000/api/${type}/${encodeURIComponent(name)}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) { setError(data.detail || 'Erro ao deletar'); setIsLoading(false); return; }
+      onChanged();
+    } catch { setError('Falha de conexão'); setIsLoading(false); }
+  };
+
+  const openEdit = () => {
+    setEditParams({ ...(presetData || {}) });
+    setMode('edit');
+    setError('');
+  };
+
+  const setParam = (key: string, value: any) => setEditParams(p => ({ ...p, [key]: value }));
+
+  const handleSaveParams = async () => {
+    setIsLoading(true); setError('');
+    try {
+      const res = await fetch(`http://localhost:8000/api/presets/${encodeURIComponent(name)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editParams)
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.detail || 'Erro ao salvar preset'); setIsLoading(false); return; }
+      setMode('idle');
       onChanged();
     } catch { setError('Falha de conexão'); setIsLoading(false); }
   };
@@ -677,10 +911,67 @@ function ResourceCard({ name, type, onChanged }: ResourceCardProps) {
             Cancelar
           </button>
         </div>
+      ) : mode === 'edit' && type === 'presets' ? (
+        <div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.5rem'}}>
+            <span style={{color:'#ff8c42',fontSize:'0.85rem',fontWeight:'600'}}>Editando "{name}"</span>
+            <button onClick={() => setMode('idle')} style={{background:'none',border:'none',color:'rgba(255,255,255,0.5)',cursor:'pointer',fontSize:'0.9rem'}}>✕</button>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem 0.75rem'}}>
+            {PARAM_FIELDS.map(f => (
+              <div key={f.key} style={{display:'flex',flexDirection:'column',gap:'0.2rem'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <label style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.6)',textTransform:'uppercase'}}>{f.label}</label>
+                  <input type="number" step={f.step} value={editParams[f.key] ?? 0}
+                    onChange={e => setParam(f.key, f.int ? (parseInt(e.target.value) || 0) : (parseFloat(e.target.value) || 0))}
+                    style={fieldInputStyle}
+                  />
+                </div>
+                <input type="range" min={f.min} max={f.max} step={f.step} value={editParams[f.key] ?? 0}
+                  onChange={e => setParam(f.key, f.int ? parseInt(e.target.value) : parseFloat(e.target.value))}
+                />
+              </div>
+            ))}
+            <div style={{display:'flex',flexDirection:'column',gap:'0.2rem'}}>
+              <label style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.6)',textTransform:'uppercase'}}>Seed</label>
+              <input type="number" value={editParams.seed ?? 0} onChange={e => setParam('seed', parseInt(e.target.value) || 0)} style={fieldInputStyle} />
+            </div>
+            <div style={{display:'flex',alignItems:'flex-end',gap:'0.4rem'}}>
+              <label style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.6)',textTransform:'uppercase',flex:1}}>Formato</label>
+              <select value={editParams.formato || 'mp3'} onChange={e => setParam('formato', e.target.value)} style={fieldInputStyle}>
+                <option value="mp3">.MP3</option><option value="wav">.WAV</option>
+              </select>
+              <select value={editParams.bitrate || '192k'} onChange={e => setParam('bitrate', e.target.value)} style={fieldInputStyle}>
+                <option value="128k">128k</option><option value="192k">192k</option>
+              </select>
+            </div>
+            <label style={{display:'flex',alignItems:'center',gap:'0.4rem',fontSize:'0.8rem',color:'#fff',cursor:'pointer'}}>
+              <input type="checkbox" checked={!!editParams.usar_seed_fixa} onChange={e => setParam('usar_seed_fixa', e.target.checked)} /> Usar seed fixa
+            </label>
+            <label style={{display:'flex',alignItems:'center',gap:'0.4rem',fontSize:'0.8rem',color:'#fff',cursor:'pointer'}}>
+              <input type="checkbox" checked={!!editParams.dividir_frases} onChange={e => setParam('dividir_frases', e.target.checked)} /> Dividir frases
+            </label>
+          </div>
+          <div style={{display:'flex',gap:'0.5rem',marginTop:'0.75rem'}}>
+            <button onClick={handleSaveParams} disabled={isLoading} style={{flex:1,padding:'0.5rem',background:'var(--accent-primary)',border:'none',borderRadius:'6px',color:'#fff',cursor:'pointer',fontSize:'0.85rem',fontWeight:'600'}}>
+              {isLoading ? 'Salvando...' : 'Salvar Alterações'}
+            </button>
+            <button onClick={() => setMode('idle')} style={{padding:'0.5rem 1rem',background:'rgba(255,255,255,0.08)',border:'none',borderRadius:'6px',color:'rgba(255,255,255,0.6)',cursor:'pointer',fontSize:'0.85rem'}}>Cancelar</button>
+          </div>
+        </div>
       ) : (
         <div style={{display:'flex',alignItems:'center',gap:'0.75rem'}}>
           <span style={{fontSize:'1.1rem'}}>{icon}</span>
           <span style={{flex:1,color:'#fff',fontSize:'0.9rem',fontWeight:'500',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{name}</span>
+          {type === 'presets' && (
+            <button
+              onClick={openEdit}
+              title="Editar parâmetros"
+              style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,0.4)',fontSize:'1rem',padding:'0.2rem 0.4rem',borderRadius:'4px',transition:'color 0.2s'}}
+              onMouseOver={e => e.currentTarget.style.color='#ff8c42'}
+              onMouseOut={e => e.currentTarget.style.color='rgba(255,255,255,0.4)'}
+            >⚙️</button>
+          )}
           <button
             onClick={() => { setMode('rename'); setNewName(name); }}
             title="Renomear"
@@ -704,7 +995,7 @@ function ResourceCard({ name, type, onChanged }: ResourceCardProps) {
 
 function ManagePanel({ onChanged }: { onChanged: () => void }) {
   const [voices, setVoices] = useState<string[]>([]);
-  const [presets, setPresets] = useState<string[]>([]);
+  const [presets, setPresets] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
 
   const refresh = () => {
@@ -714,7 +1005,7 @@ function ManagePanel({ onChanged }: { onChanged: () => void }) {
       fetch('http://localhost:8000/api/presets').then(r => r.json()),
     ]).then(([v, p]) => {
       setVoices(v.voices || []);
-      setPresets(Object.keys(p));
+      setPresets(p || {});
       setLoading(false);
     }).catch(() => setLoading(false));
   };
@@ -763,12 +1054,12 @@ function ManagePanel({ onChanged }: { onChanged: () => void }) {
           <div style={sectionStyle}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.5rem'}}>
               <h3 style={{margin:0,fontSize:'1.1rem',color:'#fff'}}>📋 Presets</h3>
-              <span style={{fontSize:'0.8rem',color:'rgba(255,255,255,0.35)'}}>{presets.length} arquivo{presets.length !== 1 ? 's' : ''}</span>
+              <span style={{fontSize:'0.8rem',color:'rgba(255,255,255,0.35)'}}>{Object.keys(presets).length} arquivo{Object.keys(presets).length !== 1 ? 's' : ''}</span>
             </div>
-            {presets.length === 0 ? (
+            {Object.keys(presets).length === 0 ? (
               <p style={{color:'rgba(255,255,255,0.35)',fontSize:'0.85rem',fontStyle:'italic'}}>Nenhum preset salvo ainda.</p>
             ) : (
-              presets.map(p => <ResourceCard key={p} name={p} type="presets" onChanged={handleChanged} />)
+              Object.entries(presets).map(([pName, pData]) => <ResourceCard key={pName} name={pName} type="presets" presetData={pData} onChanged={handleChanged} />)
             )}
           </div>
         </div>
