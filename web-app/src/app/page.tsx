@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import styles from './page.module.css';
 
 function getApiUrl(): string {
@@ -9,7 +9,7 @@ function getApiUrl(): string {
   return 'http://localhost:8000';
 }
 
-const FALLBACK_PRESETS = {
+const FALLBACK_PRESETS: Record<string, PresetData> = {
   'Default preset': {
     nome: "Default preset",
     temperatura: 0.2,
@@ -26,11 +26,36 @@ const FALLBACK_PRESETS = {
   }
 };
 
+interface PresetData {
+  nome: string;
+  temperatura: number;
+  velocidade: number;
+  comprimento_penalidade: number;
+  repeticao_penalidade: number;
+  top_k: number;
+  top_p: number;
+  usar_seed_fixa: boolean;
+  seed: number;
+  dividir_frases: boolean;
+  formato: string;
+  bitrate: string;
+}
+
 type GeneratedAudio = { serverFile: string; name: string; url: string };
 
+interface AudioArchiveItem {
+  filename: string;
+  name: string;
+  size_bytes: number;
+  created_at: string;
+  url: string;
+}
+
+const AUDIO_MAX_COUNT = 50;
+
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'tts' | 'clone' | 'manage'>('tts');
-  const [presets, setPresets] = useState<Record<string, any>>(FALLBACK_PRESETS);
+  const [activeTab, setActiveTab] = useState<'tts' | 'clone' | 'manage' | 'archive'>('tts');
+  const [presets, setPresets] = useState<Record<string, PresetData>>(FALLBACK_PRESETS);
   const [audios, setAudios] = useState<GeneratedAudio[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editingKey, setEditingKey] = useState<string>("");
@@ -73,12 +98,16 @@ export default function Home() {
           <button className={`${styles.navItem} ${activeTab === 'manage' ? styles.active : ''}`} onClick={() => setActiveTab('manage')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg> Gerenciar
           </button>
+          <button className={`${styles.navItem} ${activeTab === 'archive' ? styles.active : ''}`} onClick={() => setActiveTab('archive')}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg> Arquivo de Áudios
+          </button>
         </nav>
       </aside>
       <main className={styles.mainContent}>
         {activeTab === 'tts' && <TTSPanel presets={presets} voices={voices} onSavePreset={fetchPresets} audios={audios} setAudios={setAudios} selected={selected} setSelected={setSelected} editingKey={editingKey} setEditingKey={setEditingKey} draftName={draftName} setDraftName={setDraftName} />}
         {activeTab === 'clone' && <ClonePanel onCloned={fetchVoices} />}
         {activeTab === 'manage' && <ManagePanel onChanged={() => { fetchVoices(); fetchPresets(); }} />}
+        {activeTab === 'archive' && <AudioArchivePanel />}
       </main>
     </div>
   );
@@ -195,7 +224,7 @@ function CustomPlayer({ src, fileName, autoPlay = false }: { src: string; fileNa
   );
 }
 
-function SavePresetModal({ onSave, onClose, currentParams }: { onSave: (name: string) => void, onClose: () => void, currentParams: Record<string, any> }) {
+function SavePresetModal({ onSave, onClose, currentParams }: { onSave: (name: string) => void, onClose: () => void, currentParams: { temperature: number, speed: number, repetitionPenalty: number, lengthPenalty: number, topK: number, topP: number, seed: number, format: string } }) {
   const [name, setName] = useState("");
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}} onClick={onClose}>
@@ -235,23 +264,24 @@ function SavePresetModal({ onSave, onClose, currentParams }: { onSave: (name: st
   );
 }
 
-function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, setSelected, editingKey, setEditingKey, draftName, setDraftName }: { presets: Record<string, any>, voices: string[], onSavePreset: () => void, audios: GeneratedAudio[], setAudios: React.Dispatch<React.SetStateAction<GeneratedAudio[]>>, selected: Set<string>, setSelected: React.Dispatch<React.SetStateAction<Set<string>>>, editingKey: string, setEditingKey: React.Dispatch<React.SetStateAction<string>>, draftName: string, setDraftName: React.Dispatch<React.SetStateAction<string>> }) {
+function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, setSelected, editingKey, setEditingKey, draftName, setDraftName }: { presets: Record<string, PresetData>, voices: string[], onSavePreset: () => void, audios: GeneratedAudio[], setAudios: React.Dispatch<React.SetStateAction<GeneratedAudio[]>>, selected: Set<string>, setSelected: React.Dispatch<React.SetStateAction<Set<string>>>, editingKey: string, setEditingKey: React.Dispatch<React.SetStateAction<string>>, draftName: string, setDraftName: React.Dispatch<React.SetStateAction<string>> }) {
   const [text, setText] = useState("");
   const [activePreset, setActivePreset] = useState("Default preset");
   const [selectedVoice, setSelectedVoice] = useState("ADA");
   
-  // Parâmetros
-  const [speed, setSpeed] = useState(1.0);
-  const [temperature, setTemperature] = useState(0.2);
-  const [lengthPenalty, setLengthPenalty] = useState(-3.5);
-  const [repetitionPenalty, setRepetitionPenalty] = useState(6.5);
-  const [topK, setTopK] = useState(56);
-  const [topP, setTopP] = useState(0.89);
-  const [useFixedSeed, setUseFixedSeed] = useState(true);
-  const [seed, setSeed] = useState(99);
-  const [splitSentences, setSplitSentences] = useState(true);
-  const [format, setFormat] = useState("mp3");
-  const [bitrate, setBitrate] = useState("192k");
+  // Parâmetros - initialized from default preset
+  const defaultPreset = presets['Default preset'];
+  const [speed, setSpeed] = useState(defaultPreset?.velocidade ?? 1.0);
+  const [temperature, setTemperature] = useState(defaultPreset?.temperatura ?? 0.2);
+  const [lengthPenalty, setLengthPenalty] = useState(defaultPreset?.comprimento_penalidade ?? -3.5);
+  const [repetitionPenalty, setRepetitionPenalty] = useState(defaultPreset?.repeticao_penalidade ?? 6.5);
+  const [topK, setTopK] = useState(defaultPreset?.top_k ?? 56);
+  const [topP, setTopP] = useState(defaultPreset?.top_p ?? 0.89);
+  const [useFixedSeed, setUseFixedSeed] = useState(defaultPreset?.usar_seed_fixa ?? true);
+  const [seed, setSeed] = useState(defaultPreset?.seed ?? 99);
+  const [splitSentences, setSplitSentences] = useState(defaultPreset?.dividir_frases ?? true);
+  const [format, setFormat] = useState(defaultPreset?.formato ?? "mp3");
+  const [bitrate, setBitrate] = useState(defaultPreset?.bitrate ?? "192k");
 
   // Estado da geração
   const [isGenerating, setIsGenerating] = useState(false);
@@ -265,7 +295,7 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
     return () => clearInterval(interval);
   }, [isGenerating]);
 
-  const applyPreset = (presetKey: string) => {
+  const applyPreset = useCallback((presetKey: string) => {
     const p = presets[presetKey];
     if (p) {
       setSpeed(p.velocidade);
@@ -281,14 +311,7 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
       setBitrate(p.bitrate);
     }
     setActivePreset(presetKey);
-  };
-
-  useEffect(() => {
-    if (presets['Default preset']) applyPreset('Default preset');
-    else if (Object.keys(presets).length > 0) applyPreset(Object.keys(presets)[0]);
-    if (voices.includes('ADA')) setSelectedVoice('ADA');
-    else if (voices.length > 0) setSelectedVoice(voices[0]);
-  }, [presets, voices]);
+  }, [presets]);
 
   const handleSaveNewPreset = async (name: string) => {
     try {
@@ -305,7 +328,7 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
         setActivePreset(name);
         setTimeout(() => setSaveStatus(""), 3000);
       }
-    } catch (err) {
+    } catch {
       setSaveStatus("❌ Erro ao salvar o Preset.");
     } finally {
       setShowSaveModal(false);
@@ -660,17 +683,19 @@ function ClonePanel({ onCloned }: { onCloned: () => void }) {
   const [voiceName, setVoiceName] = useState("");
   const [isCloning, setIsCloning] = useState(false);
   const [statusMsg, setStatusMsg] = useState({ text: "", type: "" });
-  const [fileUrl, setFileUrl] = useState<string>("");
+
+  const fileUrl = useMemo(() => {
+    if (file) {
+      return URL.createObjectURL(file);
+    }
+    return "";
+  }, [file]);
 
   useEffect(() => {
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setFileUrl(url);
-      return () => URL.revokeObjectURL(url);
-    } else {
-      setFileUrl("");
-    }
-  }, [file]);
+    return () => {
+      if (fileUrl) URL.revokeObjectURL(fileUrl);
+    };
+  }, [fileUrl]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -805,11 +830,11 @@ type ResourceType = 'voices' | 'presets';
 interface ResourceCardProps {
   name: string;
   type: ResourceType;
-  presetData?: Record<string, any>;
+  presetData?: PresetData;
   onChanged: () => void;
 }
 
-const PARAM_FIELDS = [
+const PARAM_FIELDS: { key: keyof PresetData; label: string; min: number; max: number; step: number; int: boolean }[] = [
   { key: 'temperatura', label: 'Temperatura', min: 0, max: 1, step: 0.05, int: false },
   { key: 'velocidade', label: 'Velocidade', min: 0.5, max: 2, step: 0.1, int: false },
   { key: 'repeticao_penalidade', label: 'Rep. Penalidade', min: 1, max: 10, step: 0.5, int: false },
@@ -827,7 +852,7 @@ const fieldInputStyle: React.CSSProperties = {
 function ResourceCard({ name, type, presetData, onChanged }: ResourceCardProps) {
   const [mode, setMode] = useState<'idle' | 'rename' | 'confirm-delete' | 'edit'>('idle');
   const [newName, setNewName] = useState(name);
-  const [editParams, setEditParams] = useState<Record<string, any>>({});
+  const [editParams, setEditParams] = useState<Partial<PresetData>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -864,7 +889,7 @@ function ResourceCard({ name, type, presetData, onChanged }: ResourceCardProps) 
     setError('');
   };
 
-  const setParam = (key: string, value: any) => setEditParams(p => ({ ...p, [key]: value }));
+  const setParam = (key: keyof PresetData, value: string | number | boolean) => setEditParams(p => ({ ...p, [key]: value }));
 
   const handleSaveParams = async () => {
     setIsLoading(true); setError('');
@@ -912,7 +937,7 @@ function ResourceCard({ name, type, presetData, onChanged }: ResourceCardProps) 
         </div>
       ) : mode === 'confirm-delete' ? (
         <div style={{display:'flex',gap:'0.5rem',alignItems:'center',flexWrap:'wrap'}}>
-          <span style={{flex:1,fontSize:'0.85rem',color:'#ff8c8c'}}>Deletar <strong>"{name}"</strong>?</span>
+          <span style={{flex:1,fontSize:'0.85rem',color:'#ff8c8c'}}>Deletar <strong>&quot;{name}&quot;</strong>?</span>
           <button onClick={handleDelete} disabled={isLoading} style={{padding:'0.4rem 0.8rem',background:'rgba(220,50,50,0.7)',border:'none',borderRadius:'6px',color:'#fff',cursor:'pointer',fontSize:'0.8rem',fontWeight:'600'}}>
             {isLoading ? '...' : '🗑️ Deletar'}
           </button>
@@ -923,7 +948,7 @@ function ResourceCard({ name, type, presetData, onChanged }: ResourceCardProps) 
       ) : mode === 'edit' && type === 'presets' ? (
         <div>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.5rem'}}>
-            <span style={{color:'#ff8c42',fontSize:'0.85rem',fontWeight:'600'}}>Editando "{name}"</span>
+            <span style={{color:'#ff8c42',fontSize:'0.85rem',fontWeight:'600'}}>Editando &quot;{name}&quot;</span>
             <button onClick={() => setMode('idle')} style={{background:'none',border:'none',color:'rgba(255,255,255,0.5)',cursor:'pointer',fontSize:'0.9rem'}}>✕</button>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem 0.75rem'}}>
@@ -931,13 +956,13 @@ function ResourceCard({ name, type, presetData, onChanged }: ResourceCardProps) 
               <div key={f.key} style={{display:'flex',flexDirection:'column',gap:'0.2rem'}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                   <label style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.6)',textTransform:'uppercase'}}>{f.label}</label>
-                  <input type="number" step={f.step} value={editParams[f.key] ?? 0}
-                    onChange={e => setParam(f.key, f.int ? (parseInt(e.target.value) || 0) : (parseFloat(e.target.value) || 0))}
+                  <input type="number" step={f.step} value={Number(editParams[f.key] ?? 0)}
+                    onChange={e => setParam(f.key as keyof PresetData, f.int ? (parseInt(e.target.value) || 0) : (parseFloat(e.target.value) || 0))}
                     style={fieldInputStyle}
                   />
                 </div>
-                <input type="range" min={f.min} max={f.max} step={f.step} value={editParams[f.key] ?? 0}
-                  onChange={e => setParam(f.key, f.int ? parseInt(e.target.value) : parseFloat(e.target.value))}
+                <input type="range" min={f.min} max={f.max} step={f.step} value={Number(editParams[f.key] ?? 0)}
+                  onChange={e => setParam(f.key as keyof PresetData, f.int ? parseInt(e.target.value) : parseFloat(e.target.value))}
                 />
               </div>
             ))}
@@ -1002,12 +1027,174 @@ function ResourceCard({ name, type, presetData, onChanged }: ResourceCardProps) 
   );
 }
 
+function AudioArchivePanel() {
+  const [audios, setAudios] = useState<AudioArchiveItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  const initializedRef = useRef(false);
+
+  useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+    setLoading(true);
+    fetch(`${getApiUrl()}/api/audios`)
+      .then(r => r.json())
+      .then(data => { setAudios(data.audios || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const fetchAudios = useCallback(() => {
+    setLoading(true);
+    fetch(`${getApiUrl()}/api/audios`)
+      .then(r => r.json())
+      .then(data => { setAudios(data.audios || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+  };
+
+  const formatDate = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } catch { return iso; }
+  };
+
+  const filtered = audios.filter(a => a.name.toLowerCase().includes(search.toLowerCase()));
+
+  const totalSize = audios.reduce((acc, a) => acc + a.size_bytes, 0);
+
+  const toggleSelect = (filename: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(filename)) next.delete(filename); else next.add(filename);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (selected.size === filtered.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map(a => a.filename)));
+    }
+  };
+
+  const deleteSelected = async () => {
+    if (selected.size === 0) return;
+    if (!confirm(`Deletar ${selected.size} áudio(s) selecionado(s)?`)) return;
+    for (const filename of selected) {
+      await fetch(`${getApiUrl()}/api/audio/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+    }
+    setSelected(new Set());
+    fetchAudios();
+  };
+
+  const deleteAll = async () => {
+    if (audios.length === 0) return;
+    if (!confirm(`Deletar TODOS os ${audios.length} áudios? Esta ação não pode ser desfeita.`)) return;
+    await fetch(`${getApiUrl()}/api/audios`, { method: 'DELETE' });
+    setSelected(new Set());
+    fetchAudios();
+  };
+
+  return (
+    <div className={styles.panelWrapper}>
+      <header className={styles.panelHeader}>
+        <h2>Arquivo de Áudios</h2>
+        <p>{audios.length} áudio{audios.length !== 1 ? 's' : ''} · {formatSize(totalSize)} ocupados{AUDIO_MAX_COUNT > 0 ? ` · Limite: ${AUDIO_MAX_COUNT}` : ''}</p>
+      </header>
+
+      <div className={`${styles.leftCol} glass-panel`} style={{ padding: '1.25rem 1.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            className="input-base"
+            placeholder="Buscar áudio..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ flex: 1, minWidth: '200px' }}
+          />
+          <button onClick={selectAll} className={styles.audioBtn} style={{ padding: '0.5rem 1rem' }}>
+            {selected.size === filtered.length ? 'Desmarcar todos' : 'Selecionar todos'}
+          </button>
+          {selected.size > 0 && (
+            <button onClick={deleteSelected} className={styles.audioBtn} style={{ padding: '0.5rem 1rem', background: 'rgba(255,50,50,0.15)', borderColor: 'rgba(255,50,50,0.4)', color: '#ff8c8c' }}>
+              Excluir selecionados ({selected.size})
+            </button>
+          )}
+          <button onClick={deleteAll} className={styles.audioBtn} style={{ padding: '0.5rem 1rem', background: 'rgba(255,50,50,0.1)', borderColor: 'rgba(255,50,50,0.3)', color: '#ff6b6b' }}>
+            Limpar todos
+          </button>
+        </div>
+
+        {loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '2rem', justifyContent: 'center' }}>
+            <span className={styles.spinner}></span>
+            <span style={{ color: 'var(--text-secondary)' }}>Carregando áudios...</span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-secondary)' }}>
+            <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>{audios.length === 0 ? 'Nenhum áudio no host.' : 'Nenhum resultado para a busca.'}</p>
+            <p style={{ fontSize: '0.85rem', opacity: 0.6 }}>Áudios gerados na aba Sintetizador aparecerão aqui.</p>
+          </div>
+        ) : (
+          <div className={styles.audioList} style={{ maxHeight: 'calc(100vh - 300px)' }}>
+            {filtered.map(a => (
+              <div
+                key={a.filename}
+                className={`${styles.audioItem}${selected.has(a.filename) ? ' ' + styles.audioItemSelected : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.has(a.filename)}
+                  onChange={() => toggleSelect(a.filename)}
+                  className={styles.audioCheckbox}
+                  title="Selecionar"
+                />
+                <div className={styles.audioItemBody}>
+                  <div className={styles.audioNameRow}>
+                    <span className={styles.audioName} title={a.name}>{a.name}</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      {formatSize(a.size_bytes)} · {formatDate(a.created_at)}
+                    </span>
+                  </div>
+                  <CustomPlayer src={`${getApiUrl()}${a.url}`} fileName={a.name} />
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Deletar "${a.name}"?`)) return;
+                    await fetch(`${getApiUrl()}/api/audio/${encodeURIComponent(a.filename)}`, { method: 'DELETE' });
+                    fetchAudios();
+                  }}
+                  title="Deletar"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,100,100,0.5)', fontSize: '1rem', padding: '0.3rem', borderRadius: '4px', transition: 'color 0.2s', flexShrink: 0 }}
+                  onMouseOver={e => e.currentTarget.style.color = '#ff6b6b'}
+                  onMouseOut={e => e.currentTarget.style.color = 'rgba(255,100,100,0.5)'}
+                >&#128465;</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ManagePanel({ onChanged }: { onChanged: () => void }) {
   const [voices, setVoices] = useState<string[]>([]);
-  const [presets, setPresets] = useState<Record<string, any>>({});
+  const [presets, setPresets] = useState<Record<string, PresetData>>({});
   const [loading, setLoading] = useState(true);
+  const initializedRef = useRef(false);
 
-  const refresh = () => {
+  useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
     setLoading(true);
     Promise.all([
       fetch(`${getApiUrl()}/api/voices`).then(r => r.json()),
@@ -1017,9 +1204,19 @@ function ManagePanel({ onChanged }: { onChanged: () => void }) {
       setPresets(p || {});
       setLoading(false);
     }).catch(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(() => { refresh(); }, []);
+  const refresh = useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      fetch(`${getApiUrl()}/api/voices`).then(r => r.json()),
+      fetch(`${getApiUrl()}/api/presets`).then(r => r.json()),
+    ]).then(([v, p]) => {
+      setVoices(v.voices || []);
+      setPresets(p || {});
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
 
   const handleChanged = () => { refresh(); onChanged(); };
 

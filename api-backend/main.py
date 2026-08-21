@@ -4,6 +4,7 @@ import json
 import glob
 import datetime
 import zipfile
+import time
 from pathlib import Path
 from typing import List
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form, Request
@@ -82,6 +83,7 @@ MODEL_SOURCE = os.getenv("MODEL_SOURCE", "local")
 # Ativado LOWVRAM_MODE por padrao: Ele mantem o modelo na RAM (CPU) e joga para VRAM (GPU) apenas no momento de inferencia!
 LOWVRAM_MODE = os.getenv("LOWVRAM_MODE", "true").lower() == 'true'
 MODEL_VERSION = os.getenv("MODEL_VERSION", "v2.0.2")
+AUDIO_MAX_COUNT = int(os.getenv("AUDIO_MAX_COUNT", "50"))
 
 # Instancia o TTSWrapper usando as vozes da nossa nova arquitetura
 XTTS = TTSWrapper(
@@ -96,6 +98,55 @@ XTTS = TTSWrapper(
 print(f"Loading XTTS Model {MODEL_VERSION} on {DEVICE}...")
 XTTS.load_model(Path(BASE_DIR))
 print("Model loaded successfully!")
+
+
+# ----------------------
+# AUDIO CLEANUP & LISTING
+# ----------------------
+
+def cleanup_old_audios():
+    """Remove oldest audios when count exceeds AUDIO_MAX_COUNT."""
+    if AUDIO_MAX_COUNT <= 0:
+        return
+    files = []
+    for ext in ("*.wav", "*.mp3"):
+        for f in glob.glob(os.path.join(OUTPUT_DIR, ext)):
+            files.append(f)
+    if len(files) <= AUDIO_MAX_COUNT:
+        return
+    files.sort(key=lambda f: os.path.getmtime(f))
+    to_remove = files[:len(files) - AUDIO_MAX_COUNT]
+    for f in to_remove:
+        try:
+            os.remove(f)
+        except OSError:
+            pass
+
+
+class AudioFile(BaseModel):
+    filename: str
+    name: str
+    size_bytes: int
+    created_at: str
+    url: str
+
+@app.get("/api/audios")
+async def list_audios():
+    """List all audio files in the outputs directory with metadata."""
+    audios = []
+    for ext in ("*.wav", "*.mp3"):
+        for filepath in glob.glob(os.path.join(OUTPUT_DIR, ext)):
+            stat = os.stat(filepath)
+            filename = os.path.basename(filepath)
+            audios.append(AudioFile(
+                filename=filename,
+                name=filename,
+                size_bytes=stat.st_size,
+                created_at=datetime.datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                url=f"/api/audio/{filename}"
+            ))
+    audios.sort(key=lambda a: a.created_at, reverse=True)
+    return {"audios": audios, "total": len(audios)}
 
 
 class TTSRequest(BaseModel):
@@ -262,6 +313,8 @@ async def generate_tts(req: TTSRequest, request: Request):
                 raise HTTPException(status_code=500, detail=f"Erro ao converter para MP3: {result.stderr}")
             output_filename = mp3_filename
 
+        cleanup_old_audios()
+
         return {
             "status": "success", 
             "audio_url": f"{request.base_url}api/audio/{output_filename}",
@@ -279,6 +332,26 @@ async def get_audio(filename: str):
         media_type = "audio/mpeg" if ext == ".mp3" else "audio/wav"
         return FileResponse(file_path, media_type=media_type)
     raise HTTPException(status_code=404, detail="Audio file not found")
+
+@app.delete("/api/audio/{filename}")
+async def delete_audio(filename: str):
+    file_path = os.path.join(OUTPUT_DIR, filename)
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    os.remove(file_path)
+    return {"status": "success", "message": f"Audio '{filename}' deletado."}
+
+@app.delete("/api/audios")
+async def delete_all_audios():
+    deleted = 0
+    for ext in ("*.wav", "*.mp3"):
+        for filepath in glob.glob(os.path.join(OUTPUT_DIR, ext)):
+            try:
+                os.remove(filepath)
+                deleted += 1
+            except OSError:
+                pass
+    return {"status": "success", "message": f"{deleted} audios deletados.", "deleted": deleted}
 
 class ZipItem(BaseModel):
     filename: str

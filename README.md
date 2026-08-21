@@ -37,16 +37,6 @@ docker run -d \
 | **Frontend** | http://localhost:3000 |
 | **API Docs** | http://localhost:8000/docs |
 
-### 5. Acessar de outra máquina na rede
-
-Use o IP do computador que está rodando o container:
-
-```
-http://<IP>:3000
-```
-
-O frontend detecta automaticamente o endereço da API.
-
 ---
 
 ## Funcionalidades
