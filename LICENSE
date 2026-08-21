@@ -1,0 +1,35 @@
+MIT License with Additional Restrictions
+
+Copyright (c) 2026 TTS Studio Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to use,
+copy, modify, merge, publish, distribute, and/or sublicense copies of the
+Software, subject to the following conditions:
+
+1. The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+2. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+3. **Commercial Restrictions:**
+   a. You may NOT sell, sublicense for sale, or commercially distribute the
+      Software or modified versions of the Software.
+   b. You may NOT use the Software as part of a paid product, service, or
+      SaaS offering where the primary value is the Software itself.
+   c. You MAY use the Software commercially to generate output (e.g.,
+      synthesized audio) as long as the Software itself is not the product
+      being sold.
+
+4. **Attribution:** If you distribute or publicly display the Software or
+   modified versions, you must retain the original copyright notice and this
+   license text.
+
+In summary: You are free to use, modify, and distribute this software for
+personal and commercial purposes, provided you do not sell the software itself
+or offer it as a paid product/service. Generated output may be used commercially.
+
+THE SOFTWARE IS DISTRIBUTED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
