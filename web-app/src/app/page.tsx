@@ -60,7 +60,7 @@ export default function Home() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editingKey, setEditingKey] = useState<string>("");
   const [draftName, setDraftName] = useState("");
-  const [voices, setVoices] = useState<string[]>(['ADA']);
+  const [voices, setVoices] = useState<string[]>([]);
 
   const fetchPresets = () => {
     fetch(`${getApiUrl()}/api/presets`)
@@ -267,7 +267,7 @@ function SavePresetModal({ onSave, onClose, currentParams }: { onSave: (name: st
 function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, setSelected, editingKey, setEditingKey, draftName, setDraftName }: { presets: Record<string, PresetData>, voices: string[], onSavePreset: () => void, audios: GeneratedAudio[], setAudios: React.Dispatch<React.SetStateAction<GeneratedAudio[]>>, selected: Set<string>, setSelected: React.Dispatch<React.SetStateAction<Set<string>>>, editingKey: string, setEditingKey: React.Dispatch<React.SetStateAction<string>>, draftName: string, setDraftName: React.Dispatch<React.SetStateAction<string>> }) {
   const [text, setText] = useState("");
   const [activePreset, setActivePreset] = useState("Default preset");
-  const [selectedVoice, setSelectedVoice] = useState("ADA");
+  const [selectedVoice, setSelectedVoice] = useState("");
   
   // Parâmetros - initialized from default preset
   const defaultPreset = presets['Default preset'];
@@ -337,6 +337,7 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
 
   const handleGenerate = async () => {
     if (!text.trim()) return alert("Digite um texto!");
+    if (!selectedVoice) return alert("Selecione uma voz!");
     setGenElapsed(0);
     setIsGenerating(true);
     try {
@@ -488,7 +489,7 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
             <select className="input-base" style={{width: '90px'}} value={bitrate} onChange={(e) => setBitrate(e.target.value)}>
               <option value="128k">128k</option><option value="192k">192k</option>
             </select>
-            <button className="btn-primary" style={{flex: 1}} onClick={handleGenerate} disabled={isGenerating}>
+            <button className="btn-primary" style={{flex: 1}} onClick={handleGenerate} disabled={isGenerating || !selectedVoice}>
               {isGenerating ? (
                 <><span className={styles.spinner} style={{width:16,height:16}}></span> Gerando...</>
               ) : "Gerar Áudio"}
