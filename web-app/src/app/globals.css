@@ -108,6 +108,17 @@ textarea.input-base {
 .btn-primary:active {
   transform: translateY(1px);
 }
+.btn-primary:disabled {
+  background: rgba(255, 107, 0, 0.3);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.btn-primary:disabled:hover {
+  background: rgba(255, 107, 0, 0.3);
+  transform: none;
+}
 
 .btn-secondary {
   background: transparent;

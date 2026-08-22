@@ -269,6 +269,11 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
   const [activePreset, setActivePreset] = useState("Default preset");
   const [selectedVoice, setSelectedVoice] = useState("");
   
+  // Voz efetiva: usa selectedVoice se válido, senão primeira da lista, senão vazio
+  const effectiveVoice = voices.length > 0
+    ? (selectedVoice && voices.includes(selectedVoice) ? selectedVoice : voices[0])
+    : "";
+  
   // Parâmetros - initialized from default preset
   const defaultPreset = presets['Default preset'];
   const [speed, setSpeed] = useState(defaultPreset?.velocidade ?? 1.0);
@@ -337,14 +342,14 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
 
   const handleGenerate = async () => {
     if (!text.trim()) return alert("Digite um texto!");
-    if (!selectedVoice) return alert("Selecione uma voz!");
+    if (!effectiveVoice) return alert("Selecione uma voz!");
     setGenElapsed(0);
     setIsGenerating(true);
     try {
         const payload = {
             text,
             language: "pt",
-            voice: selectedVoice,
+            voice: effectiveVoice,
             temperature,
             speed,
             length_penalty: lengthPenalty,
@@ -489,7 +494,7 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
             <select className="input-base" style={{width: '90px'}} value={bitrate} onChange={(e) => setBitrate(e.target.value)}>
               <option value="128k">128k</option><option value="192k">192k</option>
             </select>
-            <button className="btn-primary" style={{flex: 1}} onClick={handleGenerate} disabled={isGenerating || !selectedVoice}>
+            <button className="btn-primary" style={{flex: 1}} onClick={handleGenerate} disabled={isGenerating || !effectiveVoice}>
               {isGenerating ? (
                 <><span className={styles.spinner} style={{width:16,height:16}}></span> Gerando...</>
               ) : "Gerar Áudio"}
@@ -600,7 +605,7 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
                 Nenhuma voz encontrada. Vá para <strong>Clonagem de Voz</strong> e adicione uma.
               </p>
             ) : (
-              <select className="input-base" value={selectedVoice} onChange={(e) => setSelectedVoice(e.target.value)}>
+              <select className="input-base" value={effectiveVoice} onChange={(e) => setSelectedVoice(e.target.value)}>
                 {voices.map(v => <option key={v} value={v}>{v}</option>)}
               </select>
             )}
