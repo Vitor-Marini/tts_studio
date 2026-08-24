@@ -329,8 +329,6 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
   const [nfeStep, setNfeStep] = useState(32);
   const [cfgStrength, setCfgStrength] = useState(2.0);
   const [swaySamplingCoef, setSwaySamplingCoef] = useState(-1.0);
-  const [refText, setRefText] = useState("");
-
   // Estado da geração
   const [isGenerating, setIsGenerating] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -423,7 +421,6 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
           payload.nfe_step = nfeStep;
           payload.cfg_strength = cfgStrength;
           payload.sway_sampling_coef = swaySamplingCoef;
-          payload.ref_text = refText;
         } else {
           payload.language = "pt";
           payload.temperature = temperature;
@@ -697,13 +694,6 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
               </select>
             )}
           </div>
-
-          {selectedModel === 'f5-tts' && (
-            <div className={styles.formGroup}>
-              <label>Texto de Referência (ref_text)</label>
-              <textarea className="input-base" rows={3} placeholder="Transcrição do áudio de referência..." value={refText} onChange={(e) => setRefText(e.target.value)} />
-            </div>
-          )}
 
           <div className={styles.divider}></div>
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>

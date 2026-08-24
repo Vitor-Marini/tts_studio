@@ -237,7 +237,7 @@ class TTSRequest(BaseModel):
     seed: int = 99
     split_sentences: bool = True
     # F5-TTS-only
-    inference_cfg_rate: float = 2.0
+    cfg_strength: float = 2.0
     nfe_step: int = 32
     sway_sampling_coef: float = -1.0
     ref_text: str = ""
