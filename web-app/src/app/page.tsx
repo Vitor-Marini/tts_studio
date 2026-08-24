@@ -10,8 +10,9 @@ function getApiUrl(): string {
 }
 
 const FALLBACK_PRESETS: Record<string, PresetData> = {
-  'Default preset': {
-    nome: "Default preset",
+  'Default XTTS': {
+    nome: "Default XTTS",
+    modelo: "xtts",
     temperatura: 0.2,
     velocidade: 1.0,
     comprimento_penalidade: -3.5,
@@ -23,22 +24,46 @@ const FALLBACK_PRESETS: Record<string, PresetData> = {
     dividir_frases: true,
     formato: "mp3",
     bitrate: "192k"
+  },
+  'Default F5-TTS': {
+    nome: "Default F5-TTS",
+    modelo: "f5-tts",
+    velocidade: 1.0,
+    nfe_step: 32,
+    cfg_strength: 2.0,
+    sway_sampling_coef: -1.0,
+    formato: "wav",
+    bitrate: "192k",
+    temperatura: 0,
+    comprimento_penalidade: 0,
+    repeticao_penalidade: 0,
+    top_k: 0,
+    top_p: 0,
+    usar_seed_fixa: false,
+    seed: 0,
+    dividir_frases: false,
   }
 };
 
 interface PresetData {
   nome: string;
-  temperatura: number;
+  modelo: string;
+  // XTTS
+  temperatura?: number;
   velocidade: number;
-  comprimento_penalidade: number;
-  repeticao_penalidade: number;
-  top_k: number;
-  top_p: number;
-  usar_seed_fixa: boolean;
-  seed: number;
-  dividir_frases: boolean;
+  comprimento_penalidade?: number;
+  repeticao_penalidade?: number;
+  top_k?: number;
+  top_p?: number;
+  usar_seed_fixa?: boolean;
+  seed?: number;
+  dividir_frases?: boolean;
   formato: string;
   bitrate: string;
+  // F5-TTS
+  nfe_step?: number;
+  cfg_strength?: number;
+  sway_sampling_coef?: number;
 }
 
 type GeneratedAudio = { serverFile: string; name: string; url: string };
@@ -86,7 +111,7 @@ export default function Home() {
       <aside className={styles.sidebar}>
         <div className={styles.logoArea}>
           <div className={styles.logoIcon}></div>
-          <h1 className={styles.logoText}>XTTS<span>Studio</span></h1>
+          <h1 className={styles.logoText}>TTS<span>Studio</span></h1>
         </div>
         <nav className={styles.nav}>
           <button className={`${styles.navItem} ${activeTab === 'tts' ? styles.active : ''}`} onClick={() => setActiveTab('tts')}>
@@ -224,28 +249,40 @@ function CustomPlayer({ src, fileName, autoPlay = false }: { src: string; fileNa
   );
 }
 
-function SavePresetModal({ onSave, onClose, currentParams }: { onSave: (name: string) => void, onClose: () => void, currentParams: { temperature: number, speed: number, repetitionPenalty: number, lengthPenalty: number, topK: number, topP: number, seed: number, format: string } }) {
+function SavePresetModal({ onSave, onClose, currentModel, currentParams }: { onSave: (name: string) => void, onClose: () => void, currentModel: string, currentParams: { temperature: number, speed: number, repetitionPenalty: number, lengthPenalty: number, topK: number, topP: number, seed: number, format: string, nfeStep: number, cfgStrength: number, swaySamplingCoef: number } }) {
   const [name, setName] = useState("");
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}} onClick={onClose}>
       <div style={{background:'#1a1a1a',border:'1px solid rgba(255,107,0,0.4)',borderRadius:'16px',padding:'2rem',width:'420px',maxWidth:'90vw'}} onClick={e=>e.stopPropagation()}>
-        <h3 style={{fontSize:'1.3rem',marginBottom:'0.5rem',color:'#fff'}}>💾 Salvar Preset Atual</h3>
-        <p style={{color:'rgba(255,255,255,0.5)',fontSize:'0.85rem',marginBottom:'1.5rem'}}>Os parâmetros dos sliders serão salvos em um arquivo JSON e aparecerão no menu de presets.</p>
+        <h3 style={{fontSize:'1.3rem',marginBottom:'0.5rem',color:'#fff'}}>Salvar Preset Atual</h3>
+        <p style={{color:'rgba(255,255,255,0.5)',fontSize:'0.85rem',marginBottom:'1.5rem'}}>Parâmetros do modelo <strong style={{color:'#ff6b00'}}>{currentModel.toUpperCase()}</strong> serão salvos.</p>
         <div style={{background:'rgba(255,255,255,0.05)',borderRadius:'8px',padding:'1rem',marginBottom:'1.5rem',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.4rem',fontSize:'0.8rem',color:'rgba(255,255,255,0.6)'}}>
-          <span>Temperatura: <strong style={{color:'#ff6b00'}}>{currentParams.temperature}</strong></span>
-          <span>Velocidade: <strong style={{color:'#ff6b00'}}>{currentParams.speed}</strong></span>
-          <span>Rep. Penalidade: <strong style={{color:'#ff6b00'}}>{currentParams.repetitionPenalty}</strong></span>
-          <span>Comp. Penalidade: <strong style={{color:'#ff6b00'}}>{currentParams.lengthPenalty}</strong></span>
-          <span>Top K: <strong style={{color:'#ff6b00'}}>{currentParams.topK}</strong></span>
-          <span>Top P: <strong style={{color:'#ff6b00'}}>{currentParams.topP}</strong></span>
-          <span>Seed: <strong style={{color:'#ff6b00'}}>{currentParams.seed}</strong></span>
-          <span>Formato: <strong style={{color:'#ff6b00'}}>{currentParams.format.toUpperCase()}</strong></span>
+          {currentModel === 'xtts' ? (
+            <>
+              <span>Temperatura: <strong style={{color:'#ff6b00'}}>{currentParams.temperature}</strong></span>
+              <span>Velocidade: <strong style={{color:'#ff6b00'}}>{currentParams.speed}</strong></span>
+              <span>Rep. Penalidade: <strong style={{color:'#ff6b00'}}>{currentParams.repetitionPenalty}</strong></span>
+              <span>Comp. Penalidade: <strong style={{color:'#ff6b00'}}>{currentParams.lengthPenalty}</strong></span>
+              <span>Top K: <strong style={{color:'#ff6b00'}}>{currentParams.topK}</strong></span>
+              <span>Top P: <strong style={{color:'#ff6b00'}}>{currentParams.topP}</strong></span>
+              <span>Seed: <strong style={{color:'#ff6b00'}}>{currentParams.seed}</strong></span>
+              <span>Formato: <strong style={{color:'#ff6b00'}}>{currentParams.format.toUpperCase()}</strong></span>
+            </>
+          ) : (
+            <>
+              <span>Velocidade: <strong style={{color:'#ff6b00'}}>{currentParams.speed}</strong></span>
+              <span>NFE Steps: <strong style={{color:'#ff6b00'}}>{currentParams.nfeStep}</strong></span>
+              <span>CFG Strength: <strong style={{color:'#ff6b00'}}>{currentParams.cfgStrength}</strong></span>
+              <span>Sway Sampling: <strong style={{color:'#ff6b00'}}>{currentParams.swaySamplingCoef}</strong></span>
+              <span>Formato: <strong style={{color:'#ff6b00'}}>{currentParams.format.toUpperCase()}</strong></span>
+            </>
+          )}
         </div>
         <label style={{display:'block',marginBottom:'0.5rem',fontSize:'0.8rem',color:'rgba(255,255,255,0.6)',textTransform:'uppercase',letterSpacing:'0.05em'}}>Nome do Preset</label>
         <input
           autoFocus
           type="text"
-          placeholder="Ex: ADA Rápida, Narrador Podcast..."
+          placeholder="Ex: ADA Expressiva, Narrador..."
           value={name}
           onChange={e => setName(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && name.trim() && onSave(name.trim())}
@@ -266,7 +303,8 @@ function SavePresetModal({ onSave, onClose, currentParams }: { onSave: (name: st
 
 function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, setSelected, editingKey, setEditingKey, draftName, setDraftName }: { presets: Record<string, PresetData>, voices: string[], onSavePreset: () => void, audios: GeneratedAudio[], setAudios: React.Dispatch<React.SetStateAction<GeneratedAudio[]>>, selected: Set<string>, setSelected: React.Dispatch<React.SetStateAction<Set<string>>>, editingKey: string, setEditingKey: React.Dispatch<React.SetStateAction<string>>, draftName: string, setDraftName: React.Dispatch<React.SetStateAction<string>> }) {
   const [text, setText] = useState("");
-  const [activePreset, setActivePreset] = useState("Default preset");
+  const [selectedModel, setSelectedModel] = useState<string>("xtts");
+  const [activePreset, setActivePreset] = useState("Default XTTS");
   const [selectedVoice, setSelectedVoice] = useState("");
   
   // Voz efetiva: usa selectedVoice se válido, senão primeira da lista, senão vazio
@@ -274,8 +312,8 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
     ? (selectedVoice && voices.includes(selectedVoice) ? selectedVoice : voices[0])
     : "";
   
-  // Parâmetros - initialized from default preset
-  const defaultPreset = presets['Default preset'];
+  // XTTS params
+  const defaultPreset = presets['Default XTTS'];
   const [speed, setSpeed] = useState(defaultPreset?.velocidade ?? 1.0);
   const [temperature, setTemperature] = useState(defaultPreset?.temperatura ?? 0.2);
   const [lengthPenalty, setLengthPenalty] = useState(defaultPreset?.comprimento_penalidade ?? -3.5);
@@ -287,6 +325,11 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
   const [splitSentences, setSplitSentences] = useState(defaultPreset?.dividir_frases ?? true);
   const [format, setFormat] = useState(defaultPreset?.formato ?? "mp3");
   const [bitrate, setBitrate] = useState(defaultPreset?.bitrate ?? "192k");
+  // F5-TTS params
+  const [nfeStep, setNfeStep] = useState(32);
+  const [cfgStrength, setCfgStrength] = useState(2.0);
+  const [swaySamplingCoef, setSwaySamplingCoef] = useState(-1.0);
+  const [refText, setRefText] = useState("");
 
   // Estado da geração
   const [isGenerating, setIsGenerating] = useState(false);
@@ -304,27 +347,49 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
     const p = presets[presetKey];
     if (p) {
       setSpeed(p.velocidade);
-      setTemperature(p.temperatura);
-      setLengthPenalty(p.comprimento_penalidade);
-      setRepetitionPenalty(p.repeticao_penalidade);
-      setTopK(p.top_k);
-      setTopP(p.top_p);
-      setUseFixedSeed(p.usar_seed_fixa);
-      setSeed(p.seed);
-      setSplitSentences(p.dividir_frases);
       setFormat(p.formato);
       setBitrate(p.bitrate);
+      if (p.modelo === 'f5-tts') {
+        setSelectedModel('f5-tts');
+        setNfeStep(p.nfe_step ?? 32);
+        setCfgStrength(p.cfg_strength ?? 2.0);
+        setSwaySamplingCoef(p.sway_sampling_coef ?? -1.0);
+      } else {
+        setSelectedModel('xtts');
+        setTemperature(p.temperatura ?? 0.2);
+        setLengthPenalty(p.comprimento_penalidade ?? -3.5);
+        setRepetitionPenalty(p.repeticao_penalidade ?? 6.5);
+        setTopK(p.top_k ?? 56);
+        setTopP(p.top_p ?? 0.89);
+        setUseFixedSeed(p.usar_seed_fixa ?? true);
+        setSeed(p.seed ?? 99);
+        setSplitSentences(p.dividir_frases ?? true);
+      }
     }
     setActivePreset(presetKey);
   }, [presets]);
 
   const handleSaveNewPreset = async (name: string) => {
     try {
-      const payload = { name, temperature, speed, length_penalty: lengthPenalty, repetition_penalty: repetitionPenalty, top_k: topK, top_p: topP, use_fixed_seed: useFixedSeed, seed, split_sentences: splitSentences, format, bitrate };
+      const base: Record<string, unknown> = { name, modelo: selectedModel, speed, format, bitrate };
+      if (selectedModel === 'f5-tts') {
+        base.nfe_step = nfeStep;
+        base.cfg_strength = cfgStrength;
+        base.sway_sampling_coef = swaySamplingCoef;
+      } else {
+        base.temperature = temperature;
+        base.length_penalty = lengthPenalty;
+        base.repetition_penalty = repetitionPenalty;
+        base.top_k = topK;
+        base.top_p = topP;
+        base.use_fixed_seed = useFixedSeed;
+        base.seed = seed;
+        base.split_sentences = splitSentences;
+      }
       const response = await fetch(`${getApiUrl()}/api/presets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(base)
       });
       const data = await response.json();
       if (data.status === 'success') {
@@ -346,22 +411,30 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
     setGenElapsed(0);
     setIsGenerating(true);
     try {
-        const payload = {
+        const payload: Record<string, unknown> = {
             text,
-            language: "pt",
+            modelo: selectedModel,
             voice: effectiveVoice,
-            temperature,
             speed,
-            length_penalty: lengthPenalty,
-            repetition_penalty: repetitionPenalty,
-            top_k: topK,
-            top_p: topP,
-            use_fixed_seed: useFixedSeed,
-            seed,
-            split_sentences: splitSentences,
             format,
-            bitrate
+            bitrate,
         };
+        if (selectedModel === 'f5-tts') {
+          payload.nfe_step = nfeStep;
+          payload.cfg_strength = cfgStrength;
+          payload.sway_sampling_coef = swaySamplingCoef;
+          payload.ref_text = refText;
+        } else {
+          payload.language = "pt";
+          payload.temperature = temperature;
+          payload.length_penalty = lengthPenalty;
+          payload.repetition_penalty = repetitionPenalty;
+          payload.top_k = topK;
+          payload.top_p = topP;
+          payload.use_fixed_seed = useFixedSeed;
+          payload.seed = seed;
+          payload.split_sentences = splitSentences;
+        }
         const response = await fetch(`${getApiUrl()}/api/tts`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -472,7 +545,7 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
     <div className={styles.panelWrapper}>
       <header className={styles.panelHeader}>
         <h2>Sintetizador de Texto</h2>
-        <p>Geração via XTTS Engine.</p>
+        <p>Geração via XTTS ou F5-TTS.</p>
       </header>
       <div className={styles.layoutGrid}>
         <div className={`${styles.leftCol} glass-panel`}>
@@ -582,9 +655,23 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
             <SavePresetModal
               onClose={() => setShowSaveModal(false)}
               onSave={handleSaveNewPreset}
-              currentParams={{ temperature, speed, repetitionPenalty, lengthPenalty, topK, topP, seed, format }}
+              currentModel={selectedModel}
+              currentParams={{ temperature, speed, repetitionPenalty: repetitionPenalty, lengthPenalty, topK, topP, seed, format, nfeStep, cfgStrength, swaySamplingCoef }}
             />
           )}
+
+          <div className={styles.formGroup}>
+            <label>Modelo de IA</label>
+            <select className="input-base" value={selectedModel} onChange={(e) => {
+              const m = e.target.value;
+              setSelectedModel(m);
+              const defaultKey = m === 'f5-tts' ? 'Default F5-TTS' : 'Default XTTS';
+              applyPreset(defaultKey);
+            }}>
+              <option value="xtts">XTTS v2</option>
+              <option value="f5-tts">F5-TTS</option>
+            </select>
+          </div>
 
           <div className={styles.formGroup}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.4rem'}}>
@@ -592,7 +679,7 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
             </div>
             {saveStatus && <span style={{fontSize:'0.8rem',color:'#69f0ae'}}>{saveStatus}</span>}
             <select className="input-base" value={activePreset} onChange={(e) => applyPreset(e.target.value)}>
-              {Object.keys(presets).map(k => (
+              {Object.keys(presets).filter(k => presets[k].modelo === selectedModel).map(k => (
                 <option key={k} value={k}>{presets[k].nome || k}</option>
               ))}
             </select>
@@ -611,73 +698,120 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
             )}
           </div>
 
+          {selectedModel === 'f5-tts' && (
+            <div className={styles.formGroup}>
+              <label>Texto de Referência (ref_text)</label>
+              <textarea className="input-base" rows={3} placeholder="Transcrição do áudio de referência..." value={refText} onChange={(e) => setRefText(e.target.value)} />
+            </div>
+          )}
+
           <div className={styles.divider}></div>
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-            <h3 className={styles.sectionTitle} style={{margin:0}}>Ajustes Finos (XTTS)</h3>
+            <h3 className={styles.sectionTitle} style={{margin:0}}>
+              {selectedModel === 'f5-tts' ? 'Ajustes Finos (F5-TTS)' : 'Ajustes Finos (XTTS)'}
+            </h3>
             <button
               onClick={() => setShowSaveModal(true)}
               style={{fontSize:'0.75rem',padding:'0.3rem 0.75rem',background:'rgba(255,107,0,0.15)',border:'1px solid rgba(255,107,0,0.4)',color:'#ff8c42',borderRadius:'6px',cursor:'pointer',transition:'all 0.2s'}}
               onMouseOver={e => e.currentTarget.style.background='rgba(255,107,0,0.25)'}
               onMouseOut={e => e.currentTarget.style.background='rgba(255,107,0,0.15)'}
-            >💾 Salvar como Preset</button>
-          </div>
-          
-          <div className={styles.formGroup}>
-            <div className={styles.labelRow}>
-              <label>Temperatura</label>
-              <input type="number" className={styles.numberInput} value={temperature} step="0.1" onChange={(e) => setTemperature(parseFloat(e.target.value))} />
-            </div>
-            <input type="range" min="0.0" max="1.0" step="0.05" value={temperature} onChange={(e) => setTemperature(parseFloat(e.target.value))} />
+            >Salvar como Preset</button>
           </div>
 
-          <div className={styles.formGroup}>
-            <div className={styles.labelRow}>
-              <label>Velocidade (Speed)</label>
-              <input type="number" className={styles.numberInput} value={speed} step="0.1" onChange={(e) => setSpeed(parseFloat(e.target.value))} />
-            </div>
-            <input type="range" min="0.5" max="2.0" step="0.1" value={speed} onChange={(e) => setSpeed(parseFloat(e.target.value))} />
-          </div>
-
-          <div className={styles.formGroup}>
-            <div className={styles.labelRow}>
-              <label>Repetição Penalidade</label>
-              <input type="number" className={styles.numberInput} value={repetitionPenalty} step="0.5" onChange={(e) => setRepetitionPenalty(parseFloat(e.target.value))} />
-            </div>
-            <input type="range" min="1.0" max="10.0" step="0.5" value={repetitionPenalty} onChange={(e) => setRepetitionPenalty(parseFloat(e.target.value))} />
-          </div>
-
-          <div className={styles.formGroup}>
-            <div className={styles.labelRow}>
-              <label>Comprimento Penalidade</label>
-              <input type="number" className={styles.numberInput} value={lengthPenalty} step="0.5" onChange={(e) => setLengthPenalty(parseFloat(e.target.value))} />
-            </div>
-            <input type="range" min="-5.0" max="5.0" step="0.5" value={lengthPenalty} onChange={(e) => setLengthPenalty(parseFloat(e.target.value))} />
-          </div>
-
-          <div className={styles.grid2Col}>
-             <div className={styles.formGroup}>
+          {selectedModel === 'xtts' ? (
+            <>
+              <div className={styles.formGroup}>
                 <div className={styles.labelRow}>
-                  <label>Top K</label>
-                  <input type="number" className={styles.numberInput} value={topK} step="1" onChange={(e) => setTopK(parseInt(e.target.value) || 0)} />
+                  <label>Temperatura</label>
+                  <input type="number" className={styles.numberInput} value={temperature} step="0.1" onChange={(e) => setTemperature(parseFloat(e.target.value))} />
                 </div>
-                <input type="range" min="1" max="100" step="1" value={topK} onChange={(e) => setTopK(parseInt(e.target.value))} />
-             </div>
-             <div className={styles.formGroup}>
-                <div className={styles.labelRow}>
-                  <label>Top P</label>
-                  <input type="number" className={styles.numberInput} value={topP} step="0.01" onChange={(e) => setTopP(parseFloat(e.target.value))} />
-                </div>
-                <input type="range" min="0.0" max="1.0" step="0.01" value={topP} onChange={(e) => setTopP(parseFloat(e.target.value))} />
-             </div>
-          </div>
+                <input type="range" min="0.0" max="1.0" step="0.05" value={temperature} onChange={(e) => setTemperature(parseFloat(e.target.value))} />
+              </div>
 
-          <div className={styles.formGroup}>
-            <div className={styles.checkboxRow} style={{marginBottom: '0.5rem', marginTop: '0.5rem'}}>
-              <input type="checkbox" checked={useFixedSeed} onChange={(e) => setUseFixedSeed(e.target.checked)} id="fixedSeed" />
-              <label htmlFor="fixedSeed" style={{textTransform: 'none', fontWeight: 'bold'}}>Usar Seed Fixa (Consistência)</label>
-            </div>
-            {useFixedSeed && <input type="number" className="input-base" value={seed} onChange={(e) => setSeed(parseInt(e.target.value))} />}
-          </div>
+              <div className={styles.formGroup}>
+                <div className={styles.labelRow}>
+                  <label>Velocidade (Speed)</label>
+                  <input type="number" className={styles.numberInput} value={speed} step="0.1" onChange={(e) => setSpeed(parseFloat(e.target.value))} />
+                </div>
+                <input type="range" min="0.5" max="2.0" step="0.1" value={speed} onChange={(e) => setSpeed(parseFloat(e.target.value))} />
+              </div>
+
+              <div className={styles.formGroup}>
+                <div className={styles.labelRow}>
+                  <label>Repetição Penalidade</label>
+                  <input type="number" className={styles.numberInput} value={repetitionPenalty} step="0.5" onChange={(e) => setRepetitionPenalty(parseFloat(e.target.value))} />
+                </div>
+                <input type="range" min="1.0" max="10.0" step="0.5" value={repetitionPenalty} onChange={(e) => setRepetitionPenalty(parseFloat(e.target.value))} />
+              </div>
+
+              <div className={styles.formGroup}>
+                <div className={styles.labelRow}>
+                  <label>Comprimento Penalidade</label>
+                  <input type="number" className={styles.numberInput} value={lengthPenalty} step="0.5" onChange={(e) => setLengthPenalty(parseFloat(e.target.value))} />
+                </div>
+                <input type="range" min="-5.0" max="5.0" step="0.5" value={lengthPenalty} onChange={(e) => setLengthPenalty(parseFloat(e.target.value))} />
+              </div>
+
+              <div className={styles.grid2Col}>
+                 <div className={styles.formGroup}>
+                    <div className={styles.labelRow}>
+                      <label>Top K</label>
+                      <input type="number" className={styles.numberInput} value={topK} step="1" onChange={(e) => setTopK(parseInt(e.target.value) || 0)} />
+                    </div>
+                    <input type="range" min="1" max="100" step="1" value={topK} onChange={(e) => setTopK(parseInt(e.target.value))} />
+                 </div>
+                 <div className={styles.formGroup}>
+                    <div className={styles.labelRow}>
+                      <label>Top P</label>
+                      <input type="number" className={styles.numberInput} value={topP} step="0.01" onChange={(e) => setTopP(parseFloat(e.target.value))} />
+                    </div>
+                    <input type="range" min="0.0" max="1.0" step="0.01" value={topP} onChange={(e) => setTopP(parseFloat(e.target.value))} />
+                 </div>
+              </div>
+
+              <div className={styles.formGroup}>
+                <div className={styles.checkboxRow} style={{marginBottom: '0.5rem', marginTop: '0.5rem'}}>
+                  <input type="checkbox" checked={useFixedSeed} onChange={(e) => setUseFixedSeed(e.target.checked)} id="fixedSeed" />
+                  <label htmlFor="fixedSeed" style={{textTransform: 'none', fontWeight: 'bold'}}>Usar Seed Fixa (Consistência)</label>
+                </div>
+                {useFixedSeed && <input type="number" className="input-base" value={seed} onChange={(e) => setSeed(parseInt(e.target.value))} />}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={styles.formGroup}>
+                <div className={styles.labelRow}>
+                  <label>Velocidade (Speed)</label>
+                  <input type="number" className={styles.numberInput} value={speed} step="0.1" onChange={(e) => setSpeed(parseFloat(e.target.value))} />
+                </div>
+                <input type="range" min="0.5" max="2.0" step="0.1" value={speed} onChange={(e) => setSpeed(parseFloat(e.target.value))} />
+              </div>
+
+              <div className={styles.formGroup}>
+                <div className={styles.labelRow}>
+                  <label>NFE Steps</label>
+                  <input type="number" className={styles.numberInput} value={nfeStep} step="1" onChange={(e) => setNfeStep(parseInt(e.target.value) || 16)} />
+                </div>
+                <input type="range" min="16" max="64" step="1" value={nfeStep} onChange={(e) => setNfeStep(parseInt(e.target.value))} />
+              </div>
+
+              <div className={styles.formGroup}>
+                <div className={styles.labelRow}>
+                  <label>CFG Strength</label>
+                  <input type="number" className={styles.numberInput} value={cfgStrength} step="0.1" onChange={(e) => setCfgStrength(parseFloat(e.target.value))} />
+                </div>
+                <input type="range" min="0.0" max="5.0" step="0.1" value={cfgStrength} onChange={(e) => setCfgStrength(parseFloat(e.target.value))} />
+              </div>
+
+              <div className={styles.formGroup}>
+                <div className={styles.labelRow}>
+                  <label>Sway Sampling</label>
+                  <input type="number" className={styles.numberInput} value={swaySamplingCoef} step="0.1" onChange={(e) => setSwaySamplingCoef(parseFloat(e.target.value))} />
+                </div>
+                <input type="range" min="-2.0" max="2.0" step="0.1" value={swaySamplingCoef} onChange={(e) => setSwaySamplingCoef(parseFloat(e.target.value))} />
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -687,6 +821,8 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
 function ClonePanel({ onCloned }: { onCloned: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [voiceName, setVoiceName] = useState("");
+  const [selectedModel, setSelectedModel] = useState("xtts");
+  const [refText, setRefText] = useState("");
   const [isCloning, setIsCloning] = useState(false);
   const [statusMsg, setStatusMsg] = useState({ text: "", type: "" });
 
@@ -712,13 +848,16 @@ function ClonePanel({ onCloned }: { onCloned: () => void }) {
 
   const handleUpload = async () => {
     setStatusMsg({ text: "", type: "" });
-    if (!file) return setStatusMsg({ text: "⚠️ Selecione um arquivo de áudio de referência.", type: "error" });
-    if (!voiceName) return setStatusMsg({ text: "⚠️ Dê um nome para a sua nova voz.", type: "error" });
+    if (!file) return setStatusMsg({ text: "Selecione um arquivo de áudio de referência.", type: "error" });
+    if (!voiceName) return setStatusMsg({ text: "Dê um nome para a sua nova voz.", type: "error" });
+    if (selectedModel === 'f5-tts' && !refText.trim()) return setStatusMsg({ text: "Para F5-TTS, insira o texto de referência (transcrição do áudio).", type: "error" });
 
     setIsCloning(true);
-    setStatusMsg({ text: "⏳ Extraindo embeddings vocais e salvando o .pth...", type: "info" });
+    setStatusMsg({ text: "Processando...", type: "info" });
     const formData = new FormData();
     formData.append("voice_name", voiceName);
+    formData.append("modelo", selectedModel);
+    formData.append("ref_text", refText);
     formData.append("file", file);
 
     try {
@@ -728,16 +867,18 @@ function ClonePanel({ onCloned }: { onCloned: () => void }) {
       });
       const data = await res.json();
       if (data.status === 'success') {
-        setStatusMsg({ text: "✅ Voz clonada! Embeddings salvos como .pth. A lista do Sintetizador foi atualizada.", type: "success" });
+        const modelLabel = selectedModel === 'f5-tts' ? 'F5-TTS (áudio + transcrição)' : 'XTTS (embeddings .pth)';
+        setStatusMsg({ text: `Voz clonada com ${modelLabel}! A lista do Sintetizador foi atualizada.`, type: "success" });
         setFile(null);
         setVoiceName("");
-        onCloned(); // Atualiza as vozes em background na main tab!
+        setRefText("");
+        onCloned();
       } else {
-        setStatusMsg({ text: "❌ Erro da API: " + data.message, type: "error" });
+        setStatusMsg({ text: "Erro da API: " + data.message, type: "error" });
       }
     } catch (err) {
       console.error(err);
-      setStatusMsg({ text: "❌ Falha ao comunicar com o Backend na porta 8000.", type: "error" });
+      setStatusMsg({ text: "Falha ao comunicar com o Backend na porta 8000.", type: "error" });
     } finally {
       setIsCloning(false);
     }
@@ -746,42 +887,50 @@ function ClonePanel({ onCloned }: { onCloned: () => void }) {
   return (
     <div className={styles.panelWrapper}>
       <header className={styles.panelHeader}>
-        <h2>Clonagem de Voz Zero-Shot</h2>
-        <p>Extraia características vocais de qualquer pessoa usando apenas uma amostra de áudio.</p>
+        <h2>Clonagem de Voz</h2>
+        <p>Crie vozes a partir de amostras de áudio usando XTTS ou F5-TTS.</p>
       </header>
       
       <div className={styles.layoutGrid}>
          <div className={`${styles.leftCol} glass-panel`}>
+           <div className={styles.formGroup}>
+             <label>Modelo</label>
+             <select className="input-base" value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
+               <option value="xtts">XTTS v2 (extrai embeddings .pth)</option>
+               <option value="f5-tts">F5-TTS (salva áudio + transcrição)</option>
+             </select>
+           </div>
+
            <div 
              className={styles.uploadArea} 
              onDragOver={(e) => e.preventDefault()} 
              onDrop={handleDrop}
              onClick={() => document.getElementById('audio-upload')?.click()}
            >
-             <input 
-               type="file" 
-               id="audio-upload" 
-               accept="audio/wav,audio/mpeg" 
-               style={{display: 'none'}} 
-               onChange={(e) => {
-                 if (e.target.files && e.target.files.length > 0) setFile(e.target.files[0]);
-               }}
-             />
-             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={file ? "var(--accent-primary)" : "var(--text-secondary)"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-             {file ? (
-               <p style={{color: 'var(--accent-primary)'}}>{file.name}</p>
-             ) : (
-               <>
-                 <p>Arraste seu arquivo .wav ou .mp3 aqui</p>
-                 <span>ou clique para selecionar arquivos locais</span>
-               </>
-             )}
+              <input 
+                type="file" 
+                id="audio-upload" 
+                accept="audio/wav,audio/mpeg" 
+                style={{display: 'none'}} 
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) setFile(e.target.files[0]);
+                }}
+              />
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={file ? "var(--accent-primary)" : "var(--text-secondary)"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+              {file ? (
+                <p style={{color: 'var(--accent-primary)'}}>{file.name}</p>
+              ) : (
+                <>
+                  <p>Arraste seu arquivo .wav ou .mp3 aqui</p>
+                  <span>ou clique para selecionar arquivos locais</span>
+                </>
+              )}
            </div>
 
            {fileUrl && (
              <div style={{marginTop: '1rem'}}>
-<p style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase'}}>Preview da Voz:</p>
-                <CustomPlayer src={fileUrl} autoPlay />
+               <p style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase'}}>Preview da Voz:</p>
+               <CustomPlayer src={fileUrl} autoPlay />
              </div>
            )}
 
@@ -790,9 +939,17 @@ function ClonePanel({ onCloned }: { onCloned: () => void }) {
              <input type="text" className="input-base" placeholder="Ex: Narrador Podcast Oficial" value={voiceName} onChange={(e) => setVoiceName(e.target.value)} />
            </div>
 
+           {selectedModel === 'f5-tts' && (
+             <div className={styles.formGroup} style={{marginTop: '0.75rem'}}>
+               <label>Texto de Referência (obrigatório para F5-TTS)</label>
+               <textarea className="input-base" rows={3} placeholder="Transcreva o que está sendo dito no áudio de referência..." value={refText} onChange={(e) => setRefText(e.target.value)} />
+               <p style={{fontSize:'0.75rem',color:'rgba(255,255,255,0.35)',marginTop:'0.25rem'}}>A transcrição exata do áudio melhora a qualidade da clonagem.</p>
+             </div>
+           )}
+
            <button className="btn-primary" style={{width: '100%', marginTop: '1rem'}} onClick={handleUpload} disabled={isCloning}>
              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-             {isCloning ? "Extraindo Embeddings..." : "Criar Nova Voz"}
+             {isCloning ? "Processando..." : "Criar Nova Voz"}
            </button>
 
            {statusMsg.text && (
@@ -812,15 +969,25 @@ function ClonePanel({ onCloned }: { onCloned: () => void }) {
 
          <div className={`${styles.rightCol} glass-panel`}>
            <h3 className={styles.sectionTitle}>Como funciona a Clonagem?</h3>
-<p className={styles.helperText}>
-              O modelo XTTS extrai os embeddings (latents) da voz diretamente do áudio de referência usando a técnica <i>Zero-Shot</i>, sem fine-tuning. Esses embeddings são salvos em um arquivo <strong>.pth</strong> — o áudio original não é armazenado.
-            </p>
-            <ul style={{color: 'var(--text-secondary)', fontSize: '0.95rem', paddingLeft: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1rem'}}>
-              <li>Use amostras curtas: <strong>10 a 30 segundos</strong> de duração.</li>
-              <li>Evite ruídos: O áudio deve estar <strong>limpo</strong>, sem música de fundo ou eco, para uma extração de embeddings mais estável.</li>
-              <li>Somente os embeddings são salvos como um arquivo <strong>.pth</strong> no servidor — o áudio de amostra é descartado (privacidade e economia de espaço).</li>
-              <li>A voz fica instantaneamente disponível no seletor de vozes da aba <strong>TTS</strong> e pode ser usada na geração.</li>
-            </ul>
+           {selectedModel === 'xtts' ? (
+             <p className={styles.helperText}>
+               O modelo XTTS extrai os embeddings (latents) da voz diretamente do áudio de referência usando a técnica <i>Zero-Shot</i>, sem fine-tuning. Esses embeddings são salvos em um arquivo <strong>.pth</strong> — o áudio original não é armazenado.
+             </p>
+           ) : (
+             <p className={styles.helperText}>
+               O F5-TTS funciona com áudio de referência + transcrição. O áudio é salvo em <strong>.wav</strong> 24kHz junto com a transcrição em JSON. Na geração, o modelo usa esses dois arquivos para clonar a voz.
+             </p>
+           )}
+           <ul style={{color: 'var(--text-secondary)', fontSize: '0.95rem', paddingLeft: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1rem'}}>
+             <li>Use amostras curtas: <strong>5 a 30 segundos</strong> de duração.</li>
+             <li>Evite ruídos: O áudio deve estar <strong>limpo</strong>, sem música de fundo ou eco.</li>
+             {selectedModel === 'xtts' ? (
+               <li>Somente os embeddings são salvos como .pth — o áudio de amostra é descartado (privacidade).</li>
+             ) : (
+               <li>O áudio de referência (WAV 24kHz) e a transcrição (JSON) são salvos no servidor.</li>
+             )}
+             <li>A voz fica instantaneamente disponível no seletor de vozes da aba <strong>TTS</strong>.</li>
+           </ul>
          </div>
       </div>
     </div>

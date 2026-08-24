@@ -16,8 +16,10 @@ cleanup() {
 trap cleanup SIGTERM SIGINT
 
 # Criar diretorios necessarios
-mkdir -p /app/api-backend/outputs
-mkdir -p /app/api-backend/voices
+mkdir -p /app/api-backend/outputs/xtts
+mkdir -p /app/api-backend/outputs/f5-tts
+mkdir -p /app/api-backend/voices/xtts
+mkdir -p /app/api-backend/voices/f5-tts
 mkdir -p /app/api-backend/presets
 
 # Verificar se o modelo existe, se não, baixar

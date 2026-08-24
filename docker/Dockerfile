@@ -50,10 +50,13 @@ COPY --from=frontend-builder /app/web-app/.next/static ./.next/static
 COPY --from=frontend-builder /app/web-app/public ./public
 
 # Criar diretórios necessários
-RUN mkdir -p api-backend/outputs api-backend/voices api-backend/presets
+RUN mkdir -p api-backend/outputs/xtts api-backend/outputs/f5-tts api-backend/voices/xtts api-backend/voices/f5-tts api-backend/presets
 
 # Pré-baixar o modelo XTTS v2.0.2 (opcional - comente se quiser baixar na primeira execução)
-RUN cd api-backend && python -c "from scripts.modeldownloader import download_model; from pathlib import Path; download_model(Path('.'), 'v2.0.2')" || echo "Model download deferred to runtime"
+RUN cd api-backend && python -c "from scripts.modeldownloader import download_model; from pathlib import Path; download_model(Path('.'), 'v2.0.2')" || echo "XTTS model download deferred to runtime"
+
+# Pré-baixar o modelo F5-TTS v1 Base (~1.5GB)
+RUN python -c "from f5_tts.api import F5TTS; F5TTS(model='F5TTS_v1_Base', device='cpu')" || echo "F5-TTS model download deferred to runtime"
 
 # Variáveis de ambiente para CPU
 ENV DEVICE=cpu
