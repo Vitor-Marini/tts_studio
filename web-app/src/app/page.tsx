@@ -13,6 +13,7 @@ const FALLBACK_PRESETS: Record<string, PresetData> = {
   'Default XTTS': {
     nome: "Default XTTS",
     modelo: "xtts",
+    variant: "base",
     temperatura: 0.2,
     velocidade: 1.0,
     comprimento_penalidade: -3.5,
@@ -28,6 +29,26 @@ const FALLBACK_PRESETS: Record<string, PresetData> = {
   'Default F5-TTS': {
     nome: "Default F5-TTS",
     modelo: "f5-tts",
+    variant: "base",
+    velocidade: 1.0,
+    nfe_step: 32,
+    cfg_strength: 2.0,
+    sway_sampling_coef: -1.0,
+    formato: "wav",
+    bitrate: "192k",
+    temperatura: 0,
+    comprimento_penalidade: 0,
+    repeticao_penalidade: 0,
+    top_k: 0,
+    top_p: 0,
+    usar_seed_fixa: false,
+    seed: 0,
+    dividir_frases: false,
+  },
+  'Default F5-TTS PT-BR': {
+    nome: "Default F5-TTS PT-BR",
+    modelo: "f5-tts",
+    variant: "pt-br",
     velocidade: 1.0,
     nfe_step: 32,
     cfg_strength: 2.0,
@@ -48,6 +69,7 @@ const FALLBACK_PRESETS: Record<string, PresetData> = {
 interface PresetData {
   nome: string;
   modelo: string;
+  variant?: string;
   // XTTS
   temperatura?: number;
   velocidade: number;
@@ -94,10 +116,11 @@ export default function Home() {
       .catch(() => console.log("Backend offline. Usando Fallback para presets."));
   };
 
-  const fetchVoices = () => {
-    fetch(`${getApiUrl()}/api/voices`)
+  const fetchVoices = (modelo?: string) => {
+    const params = modelo ? `?modelo=${modelo}` : '';
+    fetch(`${getApiUrl()}/api/voices${params}`)
       .then(res => res.json())
-      .then(data => { if (data.voices) setVoices(data.voices); }) // sempre sobrescreve, mesmo lista vazia
+      .then(data => { if (data.voices) setVoices(data.voices); })
       .catch(() => console.log("Backend offline, sem vozes carregadas."));
   };
 
@@ -129,7 +152,7 @@ export default function Home() {
         </nav>
       </aside>
       <main className={styles.mainContent}>
-        {activeTab === 'tts' && <TTSPanel presets={presets} voices={voices} onSavePreset={fetchPresets} audios={audios} setAudios={setAudios} selected={selected} setSelected={setSelected} editingKey={editingKey} setEditingKey={setEditingKey} draftName={draftName} setDraftName={setDraftName} />}
+        {activeTab === 'tts' && <TTSPanel presets={presets} voices={voices} fetchVoices={fetchVoices} onSavePreset={fetchPresets} audios={audios} setAudios={setAudios} selected={selected} setSelected={setSelected} editingKey={editingKey} setEditingKey={setEditingKey} draftName={draftName} setDraftName={setDraftName} />}
         {activeTab === 'clone' && <ClonePanel onCloned={fetchVoices} />}
         {activeTab === 'manage' && <ManagePanel onChanged={() => { fetchVoices(); fetchPresets(); }} />}
         {activeTab === 'archive' && <AudioArchivePanel />}
@@ -301,16 +324,23 @@ function SavePresetModal({ onSave, onClose, currentModel, currentParams }: { onS
   );
 }
 
-function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, setSelected, editingKey, setEditingKey, draftName, setDraftName }: { presets: Record<string, PresetData>, voices: string[], onSavePreset: () => void, audios: GeneratedAudio[], setAudios: React.Dispatch<React.SetStateAction<GeneratedAudio[]>>, selected: Set<string>, setSelected: React.Dispatch<React.SetStateAction<Set<string>>>, editingKey: string, setEditingKey: React.Dispatch<React.SetStateAction<string>>, draftName: string, setDraftName: React.Dispatch<React.SetStateAction<string>> }) {
+function TTSPanel({ presets, voices, fetchVoices, onSavePreset, audios, setAudios, selected, setSelected, editingKey, setEditingKey, draftName, setDraftName }: { presets: Record<string, PresetData>, voices: string[], fetchVoices: (modelo?: string) => void, onSavePreset: () => void, audios: GeneratedAudio[], setAudios: React.Dispatch<React.SetStateAction<GeneratedAudio[]>>, selected: Set<string>, setSelected: React.Dispatch<React.SetStateAction<Set<string>>>, editingKey: string, setEditingKey: React.Dispatch<React.SetStateAction<string>>, draftName: string, setDraftName: React.Dispatch<React.SetStateAction<string>> }) {
   const [text, setText] = useState("");
   const [selectedModel, setSelectedModel] = useState<string>("xtts");
   const [activePreset, setActivePreset] = useState("Default XTTS");
   const [selectedVoice, setSelectedVoice] = useState("");
+  const [f5Variant, setF5Variant] = useState<"base" | "pt-br">("base");
   
   // Voz efetiva: usa selectedVoice se válido, senão primeira da lista, senão vazio
   const effectiveVoice = voices.length > 0
     ? (selectedVoice && voices.includes(selectedVoice) ? selectedVoice : voices[0])
     : "";
+
+  // Re-fetch voices when model changes
+  useEffect(() => {
+    fetchVoices(selectedModel);
+    setSelectedVoice("");
+  }, [selectedModel]);
   
   // XTTS params
   const defaultPreset = presets['Default XTTS'];
@@ -349,6 +379,7 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
       setBitrate(p.bitrate);
       if (p.modelo === 'f5-tts') {
         setSelectedModel('f5-tts');
+        setF5Variant((p.variant as "base" | "pt-br") ?? "base");
         setNfeStep(p.nfe_step ?? 32);
         setCfgStrength(p.cfg_strength ?? 2.0);
         setSwaySamplingCoef(p.sway_sampling_coef ?? -1.0);
@@ -369,7 +400,7 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
 
   const handleSaveNewPreset = async (name: string) => {
     try {
-      const base: Record<string, unknown> = { name, modelo: selectedModel, speed, format, bitrate };
+      const base: Record<string, unknown> = { name, modelo: selectedModel, speed, format, bitrate, variant: selectedModel === 'f5-tts' ? f5Variant : 'base' };
       if (selectedModel === 'f5-tts') {
         base.nfe_step = nfeStep;
         base.cfg_strength = cfgStrength;
@@ -421,6 +452,7 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
           payload.nfe_step = nfeStep;
           payload.cfg_strength = cfgStrength;
           payload.sway_sampling_coef = swaySamplingCoef;
+          payload.variant = f5Variant;
         } else {
           payload.language = "pt";
           payload.temperature = temperature;
@@ -676,7 +708,12 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
             </div>
             {saveStatus && <span style={{fontSize:'0.8rem',color:'#69f0ae'}}>{saveStatus}</span>}
             <select className="input-base" value={activePreset} onChange={(e) => applyPreset(e.target.value)}>
-              {Object.keys(presets).filter(k => presets[k].modelo === selectedModel).map(k => (
+              {Object.keys(presets).filter(k => {
+                const p = presets[k];
+                if (p.modelo !== selectedModel) return false;
+                if (selectedModel === 'f5-tts' && p.variant && p.variant !== f5Variant) return false;
+                return true;
+              }).map(k => (
                 <option key={k} value={k}>{presets[k].nome || k}</option>
               ))}
             </select>
@@ -769,6 +806,14 @@ function TTSPanel({ presets, voices, onSavePreset, audios, setAudios, selected, 
             </>
           ) : (
             <>
+              <div className={styles.formGroup}>
+                <label>Idioma / Language</label>
+                <select className="input-base" value={f5Variant} onChange={(e) => setF5Variant(e.target.value as "base" | "pt-br")}>
+                  <option value="base">Inglês (Base)</option>
+                  <option value="pt-br">Português BR (Fine-tuned)</option>
+                </select>
+              </div>
+
               <div className={styles.formGroup}>
                 <div className={styles.labelRow}>
                   <label>Velocidade (Speed)</label>

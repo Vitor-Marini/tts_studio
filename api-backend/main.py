@@ -26,7 +26,7 @@ def safe_torch_load(*args, **kwargs):
     return original_torch_load(*args, **kwargs)
 torch.load = safe_torch_load
 
-from scripts.tts_funcs import XTTSModel
+from scripts.tts_funcs import XTTSModel, inbuild_speakers
 from scripts.f5_tts_model import F5TTSModel
 from scripts.tts_models import TTSModelInterface
 
@@ -64,6 +64,7 @@ DEFAULT_PRESETS = {
     "Default XTTS": {
         "nome": "Default XTTS",
         "modelo": "xtts",
+        "variant": "base",
         "temperatura": 0.2,
         "velocidade": 1.0,
         "comprimento_penalidade": -3.5,
@@ -79,6 +80,18 @@ DEFAULT_PRESETS = {
     "Default F5-TTS": {
         "nome": "Default F5-TTS",
         "modelo": "f5-tts",
+        "variant": "base",
+        "velocidade": 1.0,
+        "nfe_step": 32,
+        "cfg_strength": 2.0,
+        "sway_sampling_coef": -1.0,
+        "formato": "wav",
+        "bitrate": "192k"
+    },
+    "Default F5-TTS PT-BR": {
+        "nome": "Default F5-TTS PT-BR",
+        "modelo": "f5-tts",
+        "variant": "pt-br",
         "velocidade": 1.0,
         "nfe_step": 32,
         "cfg_strength": 2.0,
@@ -122,21 +135,33 @@ XTTS = XTTSModel(
 MODELS["xtts"] = XTTS
 
 # Lazy-init F5-TTS (loaded on first use)
-F5TTS_INSTANCE: Optional[F5TTSModel] = None
+F5TTS_BASE_INSTANCE: Optional[F5TTSModel] = None
+F5TTS_PTBR_INSTANCE: Optional[F5TTSModel] = None
 
-def get_f5tts() -> F5TTSModel:
-    global F5TTS_INSTANCE
-    if F5TTS_INSTANCE is None:
-        F5TTS_INSTANCE = F5TTSModel(
-            output_folder=OUTPUT_F5_DIR,
-            speaker_folder=VOICES_F5_DIR,
-            device=DEVICE
-        )
-    return F5TTS_INSTANCE
+def get_f5tts(variant: str = "base") -> F5TTSModel:
+    global F5TTS_BASE_INSTANCE, F5TTS_PTBR_INSTANCE
+    if variant == "pt-br":
+        if F5TTS_PTBR_INSTANCE is None:
+            F5TTS_PTBR_INSTANCE = F5TTSModel(
+                output_folder=OUTPUT_F5_DIR,
+                speaker_folder=VOICES_F5_DIR,
+                device=DEVICE,
+                variant="pt-br"
+            )
+        return F5TTS_PTBR_INSTANCE
+    else:
+        if F5TTS_BASE_INSTANCE is None:
+            F5TTS_BASE_INSTANCE = F5TTSModel(
+                output_folder=OUTPUT_F5_DIR,
+                speaker_folder=VOICES_F5_DIR,
+                device=DEVICE,
+                variant="base"
+            )
+        return F5TTS_BASE_INSTANCE
 
-def get_model(modelo: str) -> TTSModelInterface:
+def get_model(modelo: str, variant: str = "base") -> TTSModelInterface:
     if modelo == "f5-tts":
-        return get_f5tts()
+        return get_f5tts(variant)
     return XTTS  # default
 
 print(f"Loading XTTS Model {MODEL_VERSION} on {DEVICE}...")
@@ -221,6 +246,7 @@ async def list_audios(modelo: Optional[str] = Query(None)):
 class TTSRequest(BaseModel):
     text: str
     modelo: str = "xtts"
+    variant: str = "base"  # "base" or "pt-br" for F5-TTS
     language: str = "pt"
     voice: str = ""
     # Common
@@ -259,6 +285,11 @@ async def get_voices(modelo: Optional[str] = Query(None)):
     seen = {}
 
     if modelo == "xtts" or modelo is None:
+        # Include built-in XTTS speakers
+        for speaker_name in inbuild_speakers:
+            key = f"xtts:{speaker_name}"
+            seen[key] = {"name": speaker_name, "modelo": "xtts"}
+        # Include cloned voices from filesystem
         for filepath in glob.glob(os.path.join(VOICES_XTTS_DIR, "*")):
             ext = os.path.splitext(filepath)[1].lower()
             if ext not in (".wav", ".mp3", ".pth"):
@@ -281,6 +312,7 @@ async def get_voices(modelo: Optional[str] = Query(None)):
 class PresetRequest(BaseModel):
     name: str
     modelo: str = "xtts"
+    variant: str = "base"  # "base" or "pt-br" for F5-TTS
     # XTTS params
     temperature: Optional[float] = 0.2
     speed: float = 1.0
@@ -303,7 +335,7 @@ class PresetRequest(BaseModel):
 async def save_preset(req: PresetRequest):
     try:
         filepath = os.path.join(PRESETS_DIR, f"{req.name}.json")
-        data = {"nome": req.name, "modelo": req.modelo}
+        data = {"nome": req.name, "modelo": req.modelo, "variant": req.variant}
 
         if req.modelo == "f5-tts":
             data.update({
@@ -360,7 +392,7 @@ async def generate_tts(req: TTSRequest, request: Request):
 
         output_path = os.path.join(output_dir, output_filename)
 
-        model = get_model(req.modelo)
+        model = get_model(req.modelo, req.variant)
 
         if req.modelo == "f5-tts":
             params = {
@@ -370,6 +402,7 @@ async def generate_tts(req: TTSRequest, request: Request):
                 "sway_sampling_coef": req.sway_sampling_coef,
                 "seed": req.seed if req.use_fixed_seed else None,
                 "ref_text": req.ref_text,
+                "variant": req.variant,
             }
         else:
             params = {
@@ -653,6 +686,7 @@ async def rename_preset(name: str, req: RenameRequest):
 class PresetParamsRequest(BaseModel):
     nome: str
     modelo: str = "xtts"
+    variant: str = "base"  # "base" or "pt-br" for F5-TTS
     # XTTS
     temperatura: Optional[float] = 0.2
     velocidade: float = 1.0
@@ -677,7 +711,7 @@ async def update_preset_params(name: str, req: PresetParamsRequest):
     if not os.path.isfile(path):
         raise HTTPException(status_code=404, detail=f"Preset '{name}' não encontrado.")
 
-    data = {"nome": req.nome, "modelo": req.modelo}
+    data = {"nome": req.nome, "modelo": req.modelo, "variant": req.variant}
 
     if req.modelo == "f5-tts":
         data.update({

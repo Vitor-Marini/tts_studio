@@ -65,6 +65,9 @@ RUN cd api-backend && python -c "from scripts.modeldownloader import download_mo
 # Pré-baixar o modelo F5-TTS v1 Base (~1.5GB)
 RUN python -c "from f5_tts.api import F5TTS; F5TTS(model='F5TTS_v1_Base', device='cpu')" || echo "F5-TTS model download deferred to runtime"
 
+# Pré-baixar o modelo F5-TTS PT-BR (~2.4GB)
+RUN python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='firstpixel/F5-TTS-pt-br', filename='pt-br/model_last.safetensors')" || echo "F5-TTS PT-BR model download deferred to runtime"
+
 # Variáveis de ambiente para CPU
 ENV DEVICE=cpu
 ENV LOWVRAM_MODE=true

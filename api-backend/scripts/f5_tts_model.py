@@ -18,10 +18,11 @@ from scripts.tts_models import TTSModelInterface
 
 
 class F5TTSModel(TTSModelInterface):
-    def __init__(self, output_folder="./output", speaker_folder="./voices/f5-tts", device="cpu"):
+    def __init__(self, output_folder="./output", speaker_folder="./voices/f5-tts", device="cpu", variant="base"):
         self.device = device
         self.output_folder = output_folder
         self.speaker_folder = speaker_folder
+        self.variant = variant
         self.model = None
         self.model_loaded = False
         self._create_directories()
@@ -37,12 +38,24 @@ class F5TTSModel(TTSModelInterface):
     # TTSModelInterface Implementation
     # ─────────────────────────────────────────
 
-    def load_model(self, base_dir: Path = None) -> None:
+    def load_model(self, base_dir: Path = None, variant: str = None) -> None:
+        if variant:
+            self.variant = variant
         try:
             from f5_tts.api import F5TTS
-            self.model = F5TTS(model="F5TTS_v1_Base", device=self.device)
+            if self.variant == "pt-br":
+                # Download and load the Portuguese fine-tuned model
+                from huggingface_hub import hf_hub_download
+                model_path = hf_hub_download(
+                    repo_id="firstpixel/F5-TTS-pt-br",
+                    filename="pt-br/model_last.safetensors"
+                )
+                self.model = F5TTS(model=model_path, device=self.device)
+                logger.info("F5-TTS PT-BR model successfully loaded")
+            else:
+                self.model = F5TTS(model="F5TTS_v1_Base", device=self.device)
+                logger.info("F5-TTS Base model successfully loaded")
             self.model_loaded = True
-            logger.info("F5-TTS model successfully loaded")
         except ImportError:
             logger.error("f5-tts package not installed. Run: pip install f5-tts")
             raise
@@ -57,7 +70,7 @@ class F5TTSModel(TTSModelInterface):
 
     def generate(self, text: str, voice_name: str, params: dict, output_path: str, base_dir: Path = None) -> str:
         if not self.model_loaded:
-            self.load_model(base_dir)
+            self.load_model(base_dir, variant=params.get("variant", "base"))
 
         voice_path = self.get_voice_path(voice_name)
         if not voice_path:
