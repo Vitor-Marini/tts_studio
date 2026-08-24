@@ -39,6 +39,13 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install F5-TTS separately (--no-deps to avoid gradio conflict with TTS)
+# Then install only the minimal deps needed for f5_tts.api inference
+RUN pip install --no-cache-dir f5-tts --no-deps && \
+    pip install --no-cache-dir accelerate click datasets transformers_stream_generator \
+    conformer ema_pytorch vocos cached_path torchdiffeq hydra-core omegaconf \
+    soundfile x_transformers rjieba pypinyin unidecode wandb
+
 # Copiar código do backend
 COPY api-backend/ ./api-backend/
 
