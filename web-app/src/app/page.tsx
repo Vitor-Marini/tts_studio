@@ -96,6 +96,7 @@ interface AudioArchiveItem {
   size_bytes: number;
   created_at: string;
   url: string;
+  modelo: string;
 }
 
 const AUDIO_MAX_COUNT = 50;
@@ -1297,7 +1298,9 @@ function AudioArchivePanel() {
     if (selected.size === 0) return;
     if (!confirm(`Deletar ${selected.size} áudio(s) selecionado(s)?`)) return;
     for (const filename of selected) {
-      await fetch(`${getApiUrl()}/api/audio/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+      const audio = audios.find(a => a.filename === filename);
+      const modelo = audio?.modelo || 'xtts';
+      await fetch(`${getApiUrl()}/api/audio/${modelo}/${encodeURIComponent(filename)}`, { method: 'DELETE' });
     }
     setSelected(new Set());
     fetchAudios();
@@ -1377,7 +1380,7 @@ function AudioArchivePanel() {
                 <button
                   onClick={async () => {
                     if (!confirm(`Deletar "${a.name}"?`)) return;
-                    await fetch(`${getApiUrl()}/api/audio/${encodeURIComponent(a.filename)}`, { method: 'DELETE' });
+                    await fetch(`${getApiUrl()}/api/audio/${a.modelo}/${encodeURIComponent(a.filename)}`, { method: 'DELETE' });
                     fetchAudios();
                   }}
                   title="Deletar"

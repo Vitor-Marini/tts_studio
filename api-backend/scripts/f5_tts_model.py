@@ -50,7 +50,7 @@ class F5TTSModel(TTSModelInterface):
                     repo_id="firstpixel/F5-TTS-pt-br",
                     filename="pt-br/model_last.safetensors"
                 )
-                self.model = F5TTS(model=model_path, device=self.device)
+                self.model = F5TTS(model="F5TTS_v1_Base", ckpt_file=model_path, device=self.device)
                 logger.info("F5-TTS PT-BR model successfully loaded")
             else:
                 self.model = F5TTS(model="F5TTS_v1_Base", device=self.device)
