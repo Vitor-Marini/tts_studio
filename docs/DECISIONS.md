@@ -1,35 +1,22 @@
 # Decisões de Arquitetura
 
+## 2026-09-18 — Refatoração do TTS Studio v2.0
+
+### 1. Eliminação do Node.js em Produção e Adoção de Porta Única (8000)
+- **Problema anterior**: A v1 executava um container com dois servidores concorrentes (FastAPI na porta 8000 e Next.js na porta 3000), gerenciados por um script supervisor bash com loops de `curl`, complexidade desnecessária e potenciais conflitos de portas.
+- **Decisão**: Compilar o frontend como uma Single Page Application (SPA) estática moderna com Vite + React + TypeScript (~58 KB gzipped) e servi-lo diretamente pelo FastAPI na raiz `/`. O runtime de produção roda 100% em Python, com porta única (8000), sem Node.js e sem problemas de CORS.
+
+### 2. Abandono de Arquivos `.pth` e Adoção de Vozes Multi-Referência
+- **Problema anterior**: A v1 convertia uma única amostra de áudio em um tensor de pesos `.pth` descartando o áudio original, o que impedia melhorias futuras e causava quebras com PyTorch 2.6+.
+- **Decisão**: Tratar a Voz como uma entidade persistida em `data/voices/<Nome_da_Voz>/` contendo os áudios originais (`.wav`, `.mp3`) e um `voice.json` de metadados. O XTTS v2 sintetiza utilizando todas as amostras conjuntamente, resultando em maior fidelidade vocal. Amostras podem ser adicionadas, reproduzidas e removidas individualmente na interface.
+
+### 3. Síntese Estocástica Sem Cache de Áudio
+- **Decisão**: Remover o cache de áudio no backend. Cada solicitação sintetiza um take novo e único, permitindo que o usuário gere a mesma frase repetidas vezes até obter a entonação e ritmo ideais.
+
+### 4. Gestão Automática de Armazenamento (Auto-Prune FIFO)
+- **Decisão**: Implementar monitoramento contínuo do espaço ocupado em `/app/data` limitado pela variável de ambiente `MAX_STORAGE_MB` (padrão 5 GB). Se o limite for excedido, o sistema executa rotação automática removendo áudios e lotes antigos em ordem FIFO, impedindo estouro de disco em servidores.
+
+---
+
 ## 2026-08-24 — Remoção do F5-TTS
-
-### Contexto
-
-O F5-TTS foi implementado como segundo modelo de TTS (ao lado do XTTS v2) com suporte a variante PT-BR (`firstpixel/F5-TTS-pt-br`). Após testes, foram identificados dois problemas fundamentais:
-
-### Problemas
-
-1. **Geração em português não funcionava** — O modelo base F5-TTS (`F5TTS_v1_Base`) suporta apenas inglês e chinês. A variante PT-BR (`firstpixel/F5-TTS-pt-br`) é um fine-tuning separado que, mesmo após integração correta via `ckpt_file`, não gerava áudio em português de forma confiável.
-
-2. **Performance insatisfatória em CPU** — O F5-TTS é significativamente mais lento que o XTTS v2 em processamento CPU. O tempo de geração era proibitivo para uso prático, mesmo com configurações reduzidas de `nfe_step`.
-
-### Decisão
-
-Reverter para a versão XTTS-only (commit `492160b`), criando a branch `stable-xtts` como referência da última versão estável anterior ao F5-TTS.
-
-### Branches
-
-- **`prod`** — Código atual com F5-TTS (mantido no remote para referência futura)
-- **`stable-xtts`** — Versão estável XTTS-only (`492160b`)
-
-### Código F5-TTS removido
-
-- `api-backend/scripts/f5_tts_model.py` — Classe `F5TTSModel`
-- `api-backend/main.py` — Model registry, variant support, endpoints F5-TTS
-- `web-app/src/app/page.tsx` — Seletor de modelo, seletor de idioma, presets F5-TTS
-- `docker/Dockerfile` — Download do modelo F5-TTS e dependências
-
-### Futuras considerações
-
-- F5-TTS pode ser reconsiderado quando houver suporte nativo a português no modelo base
-- Para uso em GPU, o desempenho do F5-TTS pode ser aceitável
-- O XTTS v2 continua sendo a melhor opção para CPU com suporte nativo a 17 idiomas
+- Revertido para suporte exclusivo ao XTTS v2 devido a limitações de idioma e lentidão em CPU do modelo base F5-TTS.
