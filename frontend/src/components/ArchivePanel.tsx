@@ -131,7 +131,7 @@ export const ArchivePanel: React.FC = () => {
   };
 
   return (
-    <div className="panel-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+    <div className="panel-wrapper">
       <header className="panel-header">
         <h2>Gerenciador de Armazenamento e Arquivos</h2>
         <p>Acompanhe o espaço ocupado no servidor, recupere lotes anteriores e gerencie arquivos gerados.</p>
@@ -140,23 +140,19 @@ export const ArchivePanel: React.FC = () => {
       {/* Seção 1: Monitor de Armazenamento e Métricas */}
       {storage && (
         <section
-          className="glass-panel"
+          className="card"
           style={{
-            padding: '1.5rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1.25rem',
-            border: storage.used_percentage > 85 ? '1px solid rgba(255,107,107,0.4)' : '1px solid rgba(255,255,255,0.08)',
+            border: storage.used_percentage > 85 ? '1px solid rgba(255,107,107,0.4)' : undefined,
           }}
         >
           {/* Cabeçalho do Card de Armazenamento */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div className="card-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div
                 style={{
                   width: '36px',
                   height: '36px',
-                  borderRadius: '8px',
+                  borderRadius: 'var(--radius-md)',
                   background: 'rgba(255, 107, 0, 0.12)',
                   display: 'flex',
                   alignItems: 'center',
@@ -167,21 +163,17 @@ export const ArchivePanel: React.FC = () => {
                 <IconHardDrive size={20} />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.05rem', color: 'var(--text-primary)', margin: 0, fontWeight: 600 }}>
-                  Armazenamento em Disco
-                </h3>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  Capacidade total configurada: {formatSize(storage.max_bytes)}
-                </span>
+                <h3 className="card-title">Armazenamento em Disco</h3>
+                <p className="card-subtitle">Capacidade total configurada: {formatSize(storage.max_bytes)}</p>
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
               <span
                 style={{
                   fontSize: '0.75rem',
                   padding: '0.3rem 0.75rem',
-                  borderRadius: '20px',
+                  borderRadius: 'var(--radius-full)',
                   background: 'rgba(105, 240, 174, 0.1)',
                   color: 'var(--success-color)',
                   border: '1px solid rgba(105, 240, 174, 0.25)',
@@ -207,151 +199,154 @@ export const ArchivePanel: React.FC = () => {
             </div>
           </div>
 
-          {/* Barra de Progresso Visual */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              <span>Espaço Ocupado</span>
-              <strong style={{ color: storage.used_percentage > 85 ? 'var(--error-color)' : 'var(--accent-primary)' }}>
-                {formatSize(storage.used_bytes)} ({storage.used_percentage}%)
-              </strong>
-            </div>
-            <div
-              style={{
-                width: '100%',
-                height: '10px',
-                backgroundColor: 'rgba(255,255,255,0.06)',
-                borderRadius: '5px',
-                overflow: 'hidden',
-              }}
-            >
+          <div className="card-body">
+            {/* Barra de Progresso Visual */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                <span>Espaço Ocupado</span>
+                <strong style={{ color: storage.used_percentage > 85 ? 'var(--error-color)' : 'var(--accent-primary)' }}>
+                  {formatSize(storage.used_bytes)} ({storage.used_percentage}%)
+                </strong>
+              </div>
               <div
                 style={{
-                  width: `${Math.min(storage.used_percentage, 100)}%`,
-                  height: '100%',
-                  background:
-                    storage.used_percentage > 90
-                      ? 'var(--error-color)'
-                      : storage.used_percentage > 75
-                      ? 'var(--warning-color)'
-                      : 'linear-gradient(90deg, var(--accent-primary), #ff944d)',
+                  width: '100%',
+                  height: '10px',
+                  backgroundColor: 'rgba(255,255,255,0.06)',
                   borderRadius: '5px',
-                  transition: 'width 0.4s ease',
+                  overflow: 'hidden',
                 }}
-              />
-            </div>
-          </div>
-
-          {/* Mini-Cards com Distribuição de Espaço */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
-            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '6px', padding: '0.75rem 1rem' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <IconFolder size={13} />
-                <span>Lotes Processados</span>
+              >
+                <div
+                  style={{
+                    width: `${Math.min(storage.used_percentage, 100)}%`,
+                    height: '100%',
+                    background:
+                      storage.used_percentage > 90
+                        ? 'var(--error-color)'
+                        : storage.used_percentage > 75
+                        ? 'var(--warning-color)'
+                        : 'linear-gradient(90deg, var(--accent-primary), #ff944d)',
+                    borderRadius: '5px',
+                    transition: 'width 0.4s ease',
+                  }}
+                />
               </div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                {formatSize(storage.batches_bytes)}
-              </div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                {storage.total_batches} {storage.total_batches === 1 ? 'lote gravado' : 'lotes gravados'}
-              </span>
-            </div>
-
-            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '6px', padding: '0.75rem 1rem' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <IconMusic size={13} />
-                <span>Sínteses Avulsas</span>
-              </div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                {formatSize(storage.outputs_bytes)}
-              </div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                {storage.total_audios} {storage.total_audios === 1 ? 'áudio avulso' : 'áudios avulsos'}
-              </span>
             </div>
 
-            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '6px', padding: '0.75rem 1rem' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <IconHardDrive size={13} />
-                <span>Espaço Livre Estimado</span>
+            {/* Mini-Cards com Distribuição de Espaço */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <IconFolder size={13} />
+                  <span>Lotes Processados</span>
+                </div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {formatSize(storage.batches_bytes)}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  {storage.total_batches} {storage.total_batches === 1 ? 'lote gravado' : 'lotes gravados'}
+                </span>
               </div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--success-color)' }}>
-                {formatSize(Math.max(0, storage.max_bytes - storage.used_bytes))}
+
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <IconMusic size={13} />
+                  <span>Sínteses Avulsas</span>
+                </div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {formatSize(storage.outputs_bytes)}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  {storage.total_audios} {storage.total_audios === 1 ? 'áudio avulso' : 'áudios avulsos'}
+                </span>
               </div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                {(100 - storage.used_percentage).toFixed(1)}% disponível
-              </span>
+
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <IconHardDrive size={13} />
+                  <span>Espaço Livre Estimado</span>
+                </div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--success-color)' }}>
+                  {formatSize(Math.max(0, storage.max_bytes - storage.used_bytes))}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  {(100 - storage.used_percentage).toFixed(1)}% disponível
+                </span>
+              </div>
             </div>
           </div>
         </section>
       )}
 
-      {/* Seção 2: Abas de Seleção de Conteúdo */}
-      <div style={{ display: 'flex', gap: '0.75rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-        <button
-          onClick={() => setActiveTab('batches')}
-          style={{
-            padding: '0.6rem 1.4rem',
-            borderRadius: '6px',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            fontWeight: 600,
-            background: activeTab === 'batches' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.04)',
-            color: activeTab === 'batches' ? '#fff' : 'var(--text-secondary)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          <IconFolder size={16} />
-          <span>Lotes Salvos ({batches.length})</span>
-        </button>
+      {/* Seção 2: Card Principal de Arquivos com Abas e Busca */}
+      <div className="card">
+        {/* Card Header com Abas e Busca */}
+        <div className="card-header">
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setActiveTab('batches')}
+              style={{
+                padding: '0.55rem 1.1rem',
+                borderRadius: 'var(--radius-md)',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                background: activeTab === 'batches' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.05)',
+                color: activeTab === 'batches' ? '#fff' : 'var(--text-secondary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <IconFolder size={15} />
+              <span>Lotes Salvos ({batches.length})</span>
+            </button>
 
-        <button
-          onClick={() => setActiveTab('audios')}
-          style={{
-            padding: '0.6rem 1.4rem',
-            borderRadius: '6px',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            fontWeight: 600,
-            background: activeTab === 'audios' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.04)',
-            color: activeTab === 'audios' ? '#fff' : 'var(--text-secondary)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          <IconMusic size={16} />
-          <span>Sínteses Individuais ({audios.length})</span>
-        </button>
-      </div>
+            <button
+              onClick={() => setActiveTab('audios')}
+              style={{
+                padding: '0.55rem 1.1rem',
+                borderRadius: 'var(--radius-md)',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                background: activeTab === 'audios' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.05)',
+                color: activeTab === 'audios' ? '#fff' : 'var(--text-secondary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <IconMusic size={15} />
+              <span>Sínteses Individuais ({audios.length})</span>
+            </button>
+          </div>
 
-      {/* Seção 3: Conteúdo Principal com Barra de Ações Separada */}
-      <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        {/* Barra de Busca e Filtros */}
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
+          <div style={{ position: 'relative', width: '280px', maxWidth: '100%' }}>
             <input
               type="text"
               className="input-base"
-              placeholder={activeTab === 'batches' ? 'Buscar lote por identificador ou voz...' : 'Buscar áudio por nome de arquivo...'}
+              placeholder={activeTab === 'batches' ? 'Buscar lote ou voz...' : 'Buscar arquivo de áudio...'}
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ width: '100%', paddingLeft: '2.5rem' }}
+              style={{ width: '100%', paddingLeft: '2.3rem', paddingBlock: '0.5rem', fontSize: '0.85rem' }}
             />
-            <div style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }}>
-              <IconSearch size={16} />
+            <div style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }}>
+              <IconSearch size={15} />
             </div>
           </div>
+        </div>
 
+        <div className="card-body">
           {/* Botões de Ação para Sínteses Individuais */}
           {activeTab === 'audios' && (
-            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <button className="btn-secondary" style={{ fontSize: '0.8rem', padding: '0.5rem 0.85rem' }} onClick={selectAllAudios}>
+            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap', paddingBottom: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <button className="btn-secondary" style={{ fontSize: '0.8rem', padding: '0.45rem 0.8rem' }} onClick={selectAllAudios}>
                 {selected.size === filteredAudios.length && filteredAudios.length > 0 ? 'Desmarcar Todos' : 'Selecionar Todos'}
               </button>
 
@@ -359,7 +354,7 @@ export const ArchivePanel: React.FC = () => {
                 <>
                   <button
                     className="btn-primary"
-                    style={{ fontSize: '0.8rem', padding: '0.5rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                    style={{ fontSize: '0.8rem', padding: '0.45rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                     onClick={handleDownloadSelectedZip}
                   >
                     <IconDownload size={14} />
@@ -368,7 +363,7 @@ export const ArchivePanel: React.FC = () => {
 
                   <button
                     className="btn-danger"
-                    style={{ fontSize: '0.8rem', padding: '0.5rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                    style={{ fontSize: '0.8rem', padding: '0.45rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
                     onClick={handleDeleteSelectedAudios}
                   >
                     <IconTrash size={14} />
@@ -380,7 +375,7 @@ export const ArchivePanel: React.FC = () => {
               {audios.length > 0 && (
                 <button
                   className="btn-secondary"
-                  style={{ fontSize: '0.8rem', padding: '0.5rem 0.85rem', color: '#ff6b6b' }}
+                  style={{ fontSize: '0.8rem', padding: '0.45rem 0.8rem', color: '#ff6b6b', marginLeft: 'auto' }}
                   onClick={handleDeleteAllAudios}
                 >
                   Limpar Todos os Áudios

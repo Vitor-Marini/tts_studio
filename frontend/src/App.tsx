@@ -91,16 +91,16 @@ export const App: React.FC = () => {
 
       {/* Conteúdo Principal com Preservação de Estado entre Abas (Keep-Alive) */}
       <main className="main-content">
-        <div style={{ display: activeTab === 'tts' ? 'flex' : 'none', flexDirection: 'column', height: '100%', flex: 1, overflow: 'hidden' }}>
+        <div style={{ display: activeTab === 'tts' ? 'flex' : 'none', flexDirection: 'column', width: '100%', minWidth: 0 }}>
           <TTSPanel voices={voices} onGoToVoices={() => setActiveTab('voices')} />
         </div>
-        <div style={{ display: activeTab === 'batch' ? 'flex' : 'none', flexDirection: 'column', height: '100%', flex: 1, overflow: 'hidden' }}>
+        <div style={{ display: activeTab === 'batch' ? 'flex' : 'none', flexDirection: 'column', width: '100%', minWidth: 0 }}>
           <BatchPanel voices={voices} />
         </div>
-        <div style={{ display: activeTab === 'voices' ? 'flex' : 'none', flexDirection: 'column', height: '100%', flex: 1, overflow: 'hidden' }}>
+        <div style={{ display: activeTab === 'voices' ? 'flex' : 'none', flexDirection: 'column', width: '100%', minWidth: 0 }}>
           <VoicePanel voices={voices} onRefresh={fetchVoices} />
         </div>
-        <div style={{ display: activeTab === 'archive' ? 'flex' : 'none', flexDirection: 'column', height: '100%', flex: 1, overflow: 'hidden' }}>
+        <div style={{ display: activeTab === 'archive' ? 'flex' : 'none', flexDirection: 'column', width: '100%', minWidth: 0 }}>
           <ArchivePanel />
         </div>
       </main>

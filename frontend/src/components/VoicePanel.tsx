@@ -225,17 +225,24 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ voices, onRefresh }) => 
 
       {/* Lista de Vozes Cadastradas */}
       {voices.length === 0 ? (
-        <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-          <p>Nenhuma voz cadastrada. Clique no botão acima para criar sua primeira voz clonada.</p>
+        <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          <p style={{ margin: 0 }}>Nenhuma voz cadastrada. Clique no botão acima para criar sua primeira voz clonada.</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem', width: '100%' }}>
           {voices.map(voice => (
-            <div key={voice.name} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div key={voice.name} className="card" style={{ height: '100%' }}>
+              <div className="card-header">
                 <div>
-                  <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '0.2rem' }}>{voice.name}</h3>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  <h3 className="card-title" style={{ fontSize: '1.1rem' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                      <path d="M4.93 4.93a10 10 0 0 0 0 14.14" />
+                    </svg>
+                    {voice.name}
+                  </h3>
+                  <span className="card-subtitle">
                     Cadastrada em {new Date(voice.created_at).toLocaleDateString('pt-BR')}
                   </span>
                 </div>
@@ -248,101 +255,104 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ voices, onRefresh }) => 
                 </button>
               </div>
 
-              {/* Velocidade Padrão */}
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem 1rem', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Velocidade Padrão:</span>
-                {editingSpeedVoice === voice.name ? (
-                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                    <input
-                      type="number"
-                      step="0.05"
-                      min="0.5"
-                      max="2.0"
-                      value={tempSpeed}
-                      onChange={e => setTempSpeed(parseFloat(e.target.value))}
-                      style={{ width: '60px', padding: '0.2rem', background: 'var(--bg-primary)', border: '1px solid var(--accent-primary)', color: '#fff', borderRadius: '4px', textAlign: 'center' }}
-                    />
-                    <button className="btn-primary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }} onClick={() => handleSaveSpeed(voice.name)}>
-                      OK
-                    </button>
-                    <button className="btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center' }} onClick={() => setEditingSpeedVoice(null)}>
-                      <IconX size={12} />
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <strong style={{ color: 'var(--accent-primary)', fontSize: '0.9rem' }}>{voice.default_speed}x</strong>
-                    <button
-                      style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                      onClick={() => {
-                        setEditingSpeedVoice(voice.name);
-                        setTempSpeed(voice.default_speed);
-                      }}
-                      title="Editar velocidade"
-                    >
-                      <IconEdit size={14} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Lista de Referências */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <label style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>
-                    Amostras de Referência ({voice.samples.length})
-                  </label>
-                  <label
-                    htmlFor={`add-sample-${voice.name}`}
-                    style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 600 }}
-                  >
-                    + Adicionar Áudio
-                  </label>
-                  <input
-                    id={`add-sample-${voice.name}`}
-                    type="file"
-                    accept="audio/*"
-                    multiple
-                    style={{ display: 'none' }}
-                    onChange={e => handleAddSamples(voice.name, e.target.files)}
-                  />
+              <div className="card-body" style={{ flex: 1 }}>
+                {/* Velocidade Padrão */}
+                <div style={{ background: 'rgba(0,0,0,0.25)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Velocidade Padrão:</span>
+                  {editingSpeedVoice === voice.name ? (
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                      <input
+                        type="number"
+                        step="0.05"
+                        min="0.5"
+                        max="2.0"
+                        value={tempSpeed}
+                        onChange={e => setTempSpeed(parseFloat(e.target.value))}
+                        style={{ width: '60px', padding: '0.2rem', background: 'var(--bg-primary)', border: '1px solid var(--accent-primary)', color: '#fff', borderRadius: '4px', textAlign: 'center' }}
+                      />
+                      <button className="btn-primary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }} onClick={() => handleSaveSpeed(voice.name)}>
+                        OK
+                      </button>
+                      <button className="btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center' }} onClick={() => setEditingSpeedVoice(null)}>
+                        <IconX size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <strong style={{ color: 'var(--accent-primary)', fontSize: '0.9rem' }}>{voice.default_speed}x</strong>
+                      <button
+                        style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                        onClick={() => {
+                          setEditingSpeedVoice(voice.name);
+                          setTempSpeed(voice.default_speed);
+                        }}
+                        title="Editar velocidade"
+                      >
+                        <IconEdit size={14} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {voice.samples.length === 0 ? (
-                  <p style={{ fontSize: '0.8rem', color: '#ff8c8c', fontStyle: 'italic', padding: '0.5rem 0' }}>
-                    Nenhum áudio anexado. A voz precisa de pelo menos uma amostra para funcionar.
-                  </p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '240px', overflowY: 'auto' }}>
-                    {voice.samples.map(sample => (
-                      <div
-                        key={sample.filename}
-                        style={{
-                          background: 'rgba(0,0,0,0.2)',
-                          padding: '0.5rem',
-                          borderRadius: '6px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.3rem'
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }} title={sample.filename}>
-                            {sample.filename}
-                          </span>
-                          <button
-                            onClick={() => handleDeleteSample(voice.name, sample.filename)}
-                            style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: 0.7 }}
-                            title="Remover amostra"
-                          >
-                            <IconX size={12} />
-                          </button>
-                        </div>
-                        <AudioPlayer src={sample.url} fileName={sample.filename} />
-                      </div>
-                    ))}
+                {/* Lista de Referências */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.05em', fontWeight: 600 }}>
+                      Amostras de Referência ({voice.samples.length})
+                    </label>
+                    <label
+                      htmlFor={`add-sample-${voice.name}`}
+                      style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      + Adicionar Áudio
+                    </label>
+                    <input
+                      id={`add-sample-${voice.name}`}
+                      type="file"
+                      accept="audio/*"
+                      multiple
+                      style={{ display: 'none' }}
+                      onChange={e => handleAddSamples(voice.name, e.target.files)}
+                    />
                   </div>
-                )}
+
+                  {voice.samples.length === 0 ? (
+                    <p style={{ fontSize: '0.8rem', color: '#ff8c8c', fontStyle: 'italic', padding: '0.5rem 0' }}>
+                      Nenhum áudio anexado. A voz precisa de pelo menos uma amostra para funcionar.
+                    </p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '240px', overflowY: 'auto' }}>
+                      {voice.samples.map(sample => (
+                        <div
+                          key={sample.filename}
+                          style={{
+                            background: 'rgba(0,0,0,0.2)',
+                            padding: '0.5rem 0.6rem',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid rgba(255,255,255,0.04)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.3rem'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }} title={sample.filename}>
+                              {sample.filename}
+                            </span>
+                            <button
+                              onClick={() => handleDeleteSample(voice.name, sample.filename)}
+                              style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: 0.7 }}
+                              title="Remover amostra"
+                            >
+                              <IconX size={12} />
+                            </button>
+                          </div>
+                          <AudioPlayer src={sample.url} fileName={sample.filename} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}
