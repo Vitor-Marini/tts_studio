@@ -130,6 +130,32 @@ export const api = {
     if (!res.ok) throw new Error('Erro ao cancelar lote');
   },
 
+  async regenerateBatchItem(batchId: string, itemIndex: number, text?: string): Promise<any> {
+    const res = await fetch(`/api/batch/${encodeURIComponent(batchId)}/items/${itemIndex}/regenerate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Erro ao regerar item');
+    }
+    return res.json();
+  },
+
+  async updateBatchItemText(batchId: string, itemIndex: number, text: string): Promise<any> {
+    const res = await fetch(`/api/batch/${encodeURIComponent(batchId)}/items/${itemIndex}/text`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Erro ao salvar texto');
+    }
+    return res.json();
+  },
+
   // Áudios / Arquivo
   async listAudios(): Promise<{ audios: AudioFileItem[]; total: number }> {
     const res = await fetch('/api/audios');

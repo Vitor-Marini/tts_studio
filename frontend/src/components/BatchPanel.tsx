@@ -136,6 +136,33 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
     ? Math.round((activeJob.completed_items / activeJob.total_items) * 100)
     : 0;
 
+  const [editingTexts, setEditingTexts] = useState<Record<number, string>>({});
+  const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
+  const [cacheBusters, setCacheBusters] = useState<Record<number, number>>({});
+
+  const handleRegenerateItem = async (index: number) => {
+    if (!activeJob) return;
+    setRegeneratingIndex(index);
+    try {
+      const textToUse = editingTexts[index] !== undefined
+        ? editingTexts[index]
+        : activeJob.items.find(i => i.index === index)?.text;
+      const updatedItem = await api.regenerateBatchItem(activeJob.id, index, textToUse);
+      setActiveJob(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          items: prev.items.map(it => it.index === index ? updatedItem : it),
+        };
+      });
+      setCacheBusters(prev => ({ ...prev, [index]: Date.now() }));
+    } catch (err: any) {
+      alert(err.message || 'Erro ao regerar áudio.');
+    } finally {
+      setRegeneratingIndex(null);
+    }
+  };
+
   return (
     <div className="panel-wrapper">
       <header className="panel-header">
@@ -408,50 +435,119 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
           </div>
 
           {/* Tabela de Itens e Player dos Áudios Gerados */}
-          <div style={{ maxHeight: '450px', overflowY: 'auto', background: 'rgba(0,0,0,0.25)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ maxHeight: '480px', overflowY: 'auto', background: 'rgba(0,0,0,0.25)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)', position: 'sticky', top: 0, background: 'var(--bg-secondary)' }}>
-                  <th style={{ padding: '0.75rem 1rem', width: '50px' }}>#</th>
-                  <th style={{ padding: '0.75rem 1rem', width: '180px' }}>Arquivo</th>
-                  <th style={{ padding: '0.75rem 1rem' }}>Texto</th>
-                  <th style={{ padding: '0.75rem 1rem', width: '120px' }}>Status</th>
-                  <th style={{ padding: '0.75rem 1rem', width: '220px' }}>Resultado</th>
+                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)', position: 'sticky', top: 0, background: 'var(--bg-secondary)', zIndex: 5 }}>
+                  <th style={{ padding: '0.75rem 1rem', width: '40px' }}>#</th>
+                  <th style={{ padding: '0.75rem 1rem', width: '160px' }}>Arquivo</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Texto (Editável para Fine-Tuning)</th>
+                  <th style={{ padding: '0.75rem 1rem', width: '100px' }}>Status</th>
+                  <th style={{ padding: '0.75rem 1rem', width: '310px' }}>Áudio & Regeração</th>
                 </tr>
               </thead>
               <tbody>
-                {activeJob.items.map(item => (
-                  <tr key={item.index} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                    <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>{item.index}</td>
-                    <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-primary)' }}>{item.filename}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', maxWidth: '300px' }}>{item.text}</td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
-                      <span className={`badge badge-${item.status}`}>
-                        {item.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
-                      {item.status === 'completed' && (
-                        <AudioPlayer
-                          src={`/api/batch/${activeJob.id}/audio/${item.filename}`}
-                          fileName={item.filename}
-                        />
-                      )}
-                      {item.status === 'failed' && (
-                        <span style={{ color: '#ff8c8c', fontSize: '0.75rem' }}>{item.error}</span>
-                      )}
-                      {item.status === 'skipped' && (
-                        <span style={{ color: 'var(--warning-color)', fontSize: '0.75rem' }}>Arquivo existente (ignorado)</span>
-                      )}
-                      {item.status === 'processing' && (
-                        <span style={{ color: 'var(--accent-primary)', fontSize: '0.75rem' }}>Processando...</span>
-                      )}
-                      {item.status === 'pending' && (
-                        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem' }}>Aguardando</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {activeJob.items.map(item => {
+                  const currentText = editingTexts[item.index] !== undefined ? editingTexts[item.index] : item.text;
+                  const isModified = editingTexts[item.index] !== undefined && editingTexts[item.index] !== item.text;
+                  const isRegeneratingThis = regeneratingIndex === item.index;
+
+                  return (
+                    <tr key={item.index} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>{item.index}</td>
+                      <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-primary)' }}>{item.filename}</td>
+                      
+                      {/* Célula de Texto Editável */}
+                      <td style={{ padding: '0.5rem 1rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                          <textarea
+                            className="input-base"
+                            style={{
+                              padding: '0.4rem 0.6rem',
+                              fontSize: '0.85rem',
+                              minHeight: '44px',
+                              background: isModified ? 'rgba(255, 107, 0, 0.08)' : 'rgba(0, 0, 0, 0.25)',
+                              borderColor: isModified ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.1)',
+                              lineHeight: '1.3'
+                            }}
+                            value={currentText}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setEditingTexts(prev => ({ ...prev, [item.index]: val }));
+                            }}
+                            placeholder="Texto da frase..."
+                          />
+                          {isModified && (
+                            <span style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', fontWeight: 500 }}>
+                              ✏️ Texto alterado · clique em <strong>Regerar</strong> para aplicar
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <span className={`badge badge-${item.status}`}>
+                          {item.status}
+                        </span>
+                      </td>
+
+                      {/* Célula de Áudio e Botão Regerar */}
+                      <td style={{ padding: '0.5rem 1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            {(item.status === 'completed' || item.status === 'skipped') && (
+                              <AudioPlayer
+                                key={`${item.filename}-${cacheBusters[item.index] || '0'}`}
+                                src={`/api/batch/${activeJob.id}/audio/${item.filename}?t=${cacheBusters[item.index] || '0'}`}
+                                fileName={item.filename}
+                              />
+                            )}
+                            {item.status === 'failed' && (
+                              <span style={{ color: '#ff8c8c', fontSize: '0.75rem', display: 'block' }}>{item.error}</span>
+                            )}
+                            {item.status === 'processing' && (
+                              <span style={{ color: 'var(--accent-primary)', fontSize: '0.75rem' }}>Processando...</span>
+                            )}
+                            {item.status === 'pending' && (
+                              <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem' }}>Aguardando</span>
+                            )}
+                          </div>
+
+                          <button
+                            className="btn-secondary"
+                            style={{
+                              padding: '0.4rem 0.6rem',
+                              fontSize: '0.75rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              borderColor: isModified ? 'var(--accent-primary)' : 'rgba(255,107,0,0.4)',
+                              background: isModified ? 'rgba(255,107,0,0.15)' : 'transparent',
+                              color: 'var(--accent-primary)',
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0
+                            }}
+                            onClick={() => handleRegenerateItem(item.index)}
+                            disabled={isRegeneratingThis || activeJob.status === 'running'}
+                            title={activeJob.status === 'running' ? 'Aguarde o lote terminar para regerar' : 'Regerar áudio com o texto atual'}
+                          >
+                            {isRegeneratingThis ? (
+                              <>
+                                <span className="spinner" style={{ width: 10, height: 10 }}></span>
+                                <span>Gerando...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>🔄</span>
+                                <span>Regerar</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

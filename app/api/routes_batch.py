@@ -80,3 +80,30 @@ async def get_batch_audio(batch_id: str, filename: str):
         raise HTTPException(status_code=404, detail="Arquivo de áudio do lote não encontrado.")
     media_type = "audio/mpeg" if audio_path.suffix.lower() == ".mp3" else "audio/wav"
     return FileResponse(str(audio_path), media_type=media_type)
+
+class ItemTextRequest(BaseModel):
+    text: str
+
+class RegenerateItemRequest(BaseModel):
+    text: Optional[str] = None
+
+@router.put("/{batch_id}/items/{item_index}/text")
+async def update_batch_item_text(batch_id: str, item_index: int, req: ItemTextRequest):
+    try:
+        item = batch_service.update_item_text(batch_id, item_index, req.text)
+        return item
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{batch_id}/items/{item_index}/regenerate")
+async def regenerate_batch_item(batch_id: str, item_index: int, req: RegenerateItemRequest):
+    try:
+        item = batch_service.regenerate_item(batch_id, item_index, req.text)
+        return item
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao regerar item: {str(e)}")
+

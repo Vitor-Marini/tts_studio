@@ -122,6 +122,7 @@ class BatchService:
 
         self.jobs[batch_id] = job
         self.cancel_flags[batch_id] = False
+        self._save_job_json(job)
 
         # Inicia thread de processamento sequencial
         thread = threading.Thread(target=self._run_batch, args=(batch_id,), daemon=True)
@@ -212,6 +213,16 @@ class BatchService:
 
         # Gera o relatório CSV e compacta em ZIP
         self._generate_report_and_zip(job, job_dir, audios_dir)
+        self._save_job_json(job)
+
+    def _save_job_json(self, job: BatchJob):
+        try:
+            job_dir = self.batches_dir / job.id
+            if job_dir.exists():
+                with open(job_dir / "job.json", "w", encoding="utf-8") as f:
+                    f.write(job.model_dump_json(indent=2))
+        except Exception:
+            pass
 
     def _generate_report_and_zip(self, job: BatchJob, job_dir: Path, audios_dir: Path):
         report_path = job_dir / "relatorio.csv"
@@ -237,7 +248,142 @@ class BatchService:
         return False
 
     def get_job(self, batch_id: str) -> Optional[BatchJob]:
-        return self.jobs.get(batch_id)
+        if batch_id in self.jobs:
+            return self.jobs[batch_id]
+
+        job_dir = self.batches_dir / batch_id
+        job_file = job_dir / "job.json"
+        if job_file.exists():
+            try:
+                with open(job_file, "r", encoding="utf-8") as f:
+                    job = BatchJob.model_validate_json(f.read())
+                    self.jobs[batch_id] = job
+                    return job
+            except Exception:
+                pass
+
+        report_file = job_dir / "relatorio.csv"
+        if report_file.exists():
+            try:
+                items = []
+                with open(report_file, "r", encoding="utf-8-sig") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        items.append(BatchItem(
+                            index=int(row["index"]),
+                            filename=row["filename"],
+                            text=row["text"],
+                            status=row.get("status", "completed"),
+                            error=row.get("error") or None,
+                            duration_seconds=float(row["duration_seconds"]) if row.get("duration_seconds") else None,
+                            elapsed_time=float(row["elapsed_time"]) if row.get("elapsed_time") else None,
+                        ))
+                default_voice = "Voz_Padrao"
+                available = voice_service.list_voices()
+                if available and not any(v.name == default_voice for v in available):
+                    default_voice = available[0].name
+
+                job = BatchJob(
+                    id=batch_id,
+                    voice_name=default_voice,
+                    format="mp3" if items and items[0].filename.endswith(".mp3") else "wav",
+                    speed=1.0,
+                    status="completed",
+                    total_items=len(items),
+                    completed_items=len([i for i in items if i.status == "completed"]),
+                    items=items
+                )
+                self.jobs[batch_id] = job
+                self._save_job_json(job)
+                return job
+            except Exception:
+                pass
+        return None
+
+    def update_item_text(self, batch_id: str, item_index: int, new_text: str) -> BatchItem:
+        job = self.get_job(batch_id)
+        if not job:
+            raise FileNotFoundError(f"Lote '{batch_id}' não encontrado.")
+
+        item = next((it for it in job.items if it.index == item_index), None)
+        if not item:
+            raise FileNotFoundError(f"Item #{item_index} não encontrado no lote.")
+
+        item.text = new_text.strip()
+        self._save_job_json(job)
+        return item
+
+    def regenerate_item(self, batch_id: str, item_index: int, new_text: Optional[str] = None) -> BatchItem:
+        job = self.get_job(batch_id)
+        if not job:
+            raise FileNotFoundError(f"Lote '{batch_id}' não encontrado.")
+
+        item = next((it for it in job.items if it.index == item_index), None)
+        if not item:
+            raise FileNotFoundError(f"Item #{item_index} não encontrado no lote.")
+
+        if new_text and new_text.strip():
+            item.text = new_text.strip()
+
+        job_dir = self.batches_dir / batch_id
+        audios_dir = job_dir / "audios"
+        audios_dir.mkdir(parents=True, exist_ok=True)
+
+        final_file_path = audios_dir / item.filename
+        wav_temp_path = audios_dir / (Path(item.filename).stem + "_regen_temp.wav")
+
+        try:
+            speaker_wavs = voice_service.get_reference_paths(job.voice_name)
+        except FileNotFoundError:
+            available = voice_service.list_voices()
+            if not available:
+                raise FileNotFoundError("Nenhuma voz cadastrada no sistema.")
+            job.voice_name = available[0].name
+            speaker_wavs = voice_service.get_reference_paths(job.voice_name)
+
+        try:
+            t0 = time.time()
+            elapsed = engine.synthesize(
+                text=item.text,
+                speaker_wavs=speaker_wavs,
+                output_path=wav_temp_path,
+                language="pt",
+                speed=job.speed
+            )
+
+            if job.format == "mp3":
+                success = convert_wav_to_mp3(wav_temp_path, final_file_path)
+                if success and final_file_path.exists():
+                    try:
+                        wav_temp_path.unlink()
+                    except OSError:
+                        pass
+                else:
+                    if wav_temp_path.exists():
+                        wav_temp_path.rename(final_file_path)
+            else:
+                if wav_temp_path.exists():
+                    wav_temp_path.rename(final_file_path)
+
+            item.status = "completed"
+            item.error = None
+            item.elapsed_time = round(elapsed, 2)
+            item.duration_seconds = round(get_audio_duration(final_file_path), 2)
+
+        except Exception as e:
+            item.status = "failed"
+            item.error = str(e)
+            if wav_temp_path.exists():
+                try:
+                    wav_temp_path.unlink()
+                except OSError:
+                    pass
+            raise e
+        finally:
+            self._generate_report_and_zip(job, job_dir, audios_dir)
+            self._save_job_json(job)
+
+        return item
 
     def get_zip_path(self, batch_id: str) -> Optional[Path]:
         job_dir = self.batches_dir / batch_id
