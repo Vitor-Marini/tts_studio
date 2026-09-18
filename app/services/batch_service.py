@@ -304,10 +304,8 @@ class BatchService:
                             duration_seconds=float(row["duration_seconds"]) if row.get("duration_seconds") else None,
                             elapsed_time=float(row["elapsed_time"]) if row.get("elapsed_time") else None,
                         ))
-                default_voice = "Voz_Padrao"
                 available = voice_service.list_voices()
-                if available and not any(v.name == default_voice for v in available):
-                    default_voice = available[0].name
+                default_voice = available[0].name if available else "-"
 
                 job = BatchJob(
                     id=batch_id,

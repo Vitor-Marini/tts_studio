@@ -1,28 +1,22 @@
-# Decisoes de Arquitetura
+# Decisões de Arquitetura
 
-## 2026-08-24 — Remocao do F5-TTS
+## 2026-09-18 — Refatoração do TTS Studio v2.0
 
-### Contexto
+### 1. Eliminação do Node.js em Produção e Adoção de Porta Única (8000)
+- **Problema anterior**: A v1 executava um container com dois servidores concorrentes (FastAPI na porta 8000 e Next.js na porta 3000), gerenciados por um script supervisor bash com loops de `curl`, complexidade desnecessária e potenciais conflitos de portas.
+- **Decisão**: Compilar o frontend como uma Single Page Application (SPA) estática moderna com Vite + React + TypeScript (~58 KB gzipped) e servi-lo diretamente pelo FastAPI na raiz `/`. O runtime de produção roda 100% em Python, com porta única (8000), sem Node.js e sem problemas de CORS.
 
-O F5-TTS foi implementado como segundo modelo de TTS (ao lado do XTTS v2) com suporte a variante PT-BR (`firstpixel/F5-TTS-pt-br`). Apos testes, foram identificados dois problemas fundamentais:
+### 2. Abandono de Arquivos `.pth` e Adoção de Vozes Multi-Referência
+- **Problema anterior**: A v1 convertia uma única amostra de áudio em um tensor de pesos `.pth` descartando o áudio original, o que impedia melhorias futuras e causava quebras com PyTorch 2.6+.
+- **Decisão**: Tratar a Voz como uma entidade persistida em `data/voices/<Nome_da_Voz>/` contendo os áudios originais (`.wav`, `.mp3`) e um `voice.json` de metadados. O XTTS v2 sintetiza utilizando todas as amostras conjuntamente, resultando em maior fidelidade vocal. Amostras podem ser adicionadas, reproduzidas e removidas individualmente na interface.
 
-### Problemas
+### 3. Síntese Estocástica Sem Cache de Áudio
+- **Decisão**: Remover o cache de áudio no backend. Cada solicitação sintetiza um take novo e único, permitindo que o usuário gere a mesma frase repetidas vezes até obter a entonação e ritmo ideais.
 
-1. **Geracao em portugues nao funcionava** — O modelo base F5-TTS (`F5TTS_v1_Base`) suporta apenas ingles e chines. A variante PT-BR e um fine-tuning separado que, mesmo apos integracao correta via `ckpt_file`, nao gerava audio em portugues de forma confiavel.
+### 4. Gestão Automática de Armazenamento (Auto-Prune FIFO)
+- **Decisão**: Implementar monitoramento contínuo do espaço ocupado em `/app/data` limitado pela variável de ambiente `MAX_STORAGE_MB` (padrão 5 GB). Se o limite for excedido, o sistema executa rotação automática removendo áudios e lotes antigos em ordem FIFO, impedindo estouro de disco em servidores.
 
-2. **Performance insatisfatoria em CPU** — O F5-TTS e significativamente mais lento que o XTTS v2 em processamento CPU. O tempo de geracao era proibitivo para uso pratico, mesmo com configuracoes reduzidas de `nfe_step`.
+---
 
-### Decisao
-
-Reverter para a versao XTTS-only (commit `492160b`), criando a branch `stable-xtts` como referencia da ultima versao estavel anterior ao F5-TTS.
-
-### Branches
-
-- **`prod`** — Codigo com F5-TTS (mantido no remote para referencia futura)
-- **`stable-xtts`** — Versao estavel XTTS-only
-
-### Futuras consideracoes
-
-- F5-TTS pode ser reconsiderado quando houver suporte nativo a portugues no modelo base
-- Para uso em GPU, o desempenho do F5-TTS pode ser aceitavel
-- O XTTS v2 continua sendo a melhor opcao para CPU com suporte nativo a 17 idiomas
+## 2026-08-24 — Remoção do F5-TTS
+- Revertido para suporte exclusivo ao XTTS v2 devido a limitações de idioma e lentidão em CPU do modelo base F5-TTS.

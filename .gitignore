@@ -6,20 +6,18 @@ __pycache__/
 .Python
 venv/
 .venv/
+env/
 *.egg-info/
 
-# Node
-web-app/node_modules/
-web-app/.next/
-web-app/.npm
+# Node & Frontend
+frontend/node_modules/
+frontend/dist/
 
-# IDEs
+# IDEs & OS
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS
 .DS_Store
 Thumbs.db
 
@@ -27,17 +25,34 @@ Thumbs.db
 *.log
 logs/
 
-# Data (montado como volume)
+# Data Persistence (volumes / local data)
 data/
-api-backend/outputs/
-api-backend/voices/
-api-backend/presets/
-api-backend/models/
-frontend/node_modules/
-frontend/dist/
+data/*
+!data/.gitkeep
+!data/**/.gitkeep
 
-# Docker artifacts
+# Audio & Media Files (garante que nenhum áudio seja rastreado)
+*.wav
+*.mp3
+*.ogg
+*.flac
+*.m4a
+*.aac
+*.pcm
+
+# Checkpoints & Model weights
+*.pth
+*.pt
+*.bin
+*.onnx
+*.safetensors
+*.ckpt
+
+# Archives & Temp
+*.tar
 *.tar.gz
+*.zip
 
-# Ruff cache
+# Cache
 .ruff_cache/
+.pytest_cache/

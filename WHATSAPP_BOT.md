@@ -55,7 +55,7 @@ Exemplo de payload do `POST /api/tts`:
 {
   "text": "Olá, esta é uma mensagem de teste",
   "language": "pt",
-  "voice": "ADA",
+  "voice": "NomeDaVoz",
   "temperature": 0.2,
   "speed": 1.0,
   "length_penalty": -3.5,

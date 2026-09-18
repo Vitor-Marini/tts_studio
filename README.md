@@ -168,6 +168,9 @@ tts_studio/
 ├── frontend/                # Interface SPA moderna (Vite + React + TypeScript)
 ├── docker/
 │   └── Dockerfile           # Multi-stage build leve
-├── requirements.txt         # Dependências limpas
-└── _OLD_*/                  # Código da v1 arquivado para referência histórica
+├── Dockerfile               # Build de produção de porta única
+├── docker-compose.yml       # Orquestração rápida com volumes persistentes
+├── requirements.txt         # Dependências Python enxutas
+├── data/                    # Volume de dados persistentes (modelos, vozes, outputs, batches)
+└── docs/                    # Documentação técnica e decisões de arquitetura
 ```

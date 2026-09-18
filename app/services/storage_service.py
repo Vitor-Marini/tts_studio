@@ -111,7 +111,7 @@ class StorageService:
 
             # Procura job.json
             job_file = batch_folder / "job.json"
-            voice_name = "Voz_Padrao"
+            voice_name = "-"
             status = "completed"
             total_items = 0
             completed_items = 0

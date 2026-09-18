@@ -25,27 +25,6 @@ class VoiceService:
     def __init__(self):
         self.voices_dir = settings.VOICES_DIR
         self.voices_dir.mkdir(parents=True, exist_ok=True)
-        self._seed_default_voice_if_empty()
-
-    def _seed_default_voice_if_empty(self):
-        """Se não houver nenhuma voz cadastrada e houver referências no repositório tetsTTS, inicializa uma voz padrão."""
-        existing = self.list_voices()
-        if not existing:
-            # Procura por referências em tetsTTS para facilitar o teste inicial
-            test_tts_dir = settings.BASE_DIR.parent / "tetsTTS"
-            ref_files = list(test_tts_dir.glob("reference*.wav"))
-            if ref_files:
-                default_voice_dir = self.voices_dir / "Voz_Padrao"
-                default_voice_dir.mkdir(parents=True, exist_ok=True)
-                for f in ref_files[:3]:
-                    shutil.copy(f, default_voice_dir / f.name)
-                meta = {
-                    "name": "Voz_Padrao",
-                    "default_speed": 1.0,
-                    "created_at": datetime.now().isoformat()
-                }
-                with open(default_voice_dir / "voice.json", "w", encoding="utf-8") as meta_file:
-                    json.dump(meta, meta_file, indent=2)
 
     def _clean_name(self, name: str) -> str:
         clean = re.sub(r'[^a-zA-Z0-9_\- ]', '', name).strip()
