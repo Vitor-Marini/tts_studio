@@ -17,8 +17,6 @@ class TTSService:
     def __init__(self):
         self.outputs_dir = settings.OUTPUTS_DIR
         self.outputs_dir.mkdir(parents=True, exist_ok=True)
-        self.cache_dir = settings.CACHE_DIR
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def synthesize(
         self,
@@ -43,41 +41,10 @@ class TTSService:
         short_id = uuid.uuid4().hex[:8]
         target_format = format.lower()
 
-        # Verifica existência no cache
-        cache_raw = f"{voice_name}:{effective_speed:.2f}:{language}:{target_format}:{text}"
-        cache_key = hashlib.sha256(cache_raw.encode("utf-8")).hexdigest()
-        cache_file = self.cache_dir / f"cache_{cache_key}.{target_format}"
-
-        final_filename = f"tts_{timestamp}_{short_id}.{target_format}"
-        final_path = self.outputs_dir / final_filename
-
-        is_cached = False
-        if cache_file.exists() and cache_file.stat().st_size > 0:
-            try:
-                shutil.copyfile(cache_file, final_path)
-                try:
-                    cache_file.touch()
-                except OSError:
-                    pass
-                duration = get_audio_duration(final_path)
-                return {
-                    "id": f"tts_{timestamp}_{short_id}",
-                    "filename": final_filename,
-                    "audio_url": f"/api/audio/{final_filename}",
-                    "duration_seconds": round(duration, 2),
-                    "elapsed_time": 0.02,
-                    "voice": voice_name,
-                    "speed": effective_speed,
-                    "format": target_format,
-                    "cached": True
-                }
-            except Exception:
-                pass  # Em caso de falha de leitura do cache, prossegue com síntese normal
-
         wav_filename = f"tts_{timestamp}_{short_id}.wav"
         wav_path = self.outputs_dir / wav_filename
 
-        # Executa a síntese no engine
+        # Executa a síntese no engine sempre fresca (sem cache de áudio para permitir múltiplos takes)
         elapsed = engine.synthesize(
             text=text,
             speaker_wavs=speaker_wavs,
@@ -107,12 +74,6 @@ class TTSService:
 
         duration = get_audio_duration(final_path)
 
-        # Salva cópia no cache
-        try:
-            shutil.copyfile(final_path, cache_file)
-        except Exception:
-            pass
-
         # Garante limite de armazenamento
         try:
             storage_service.enforce_storage_limit()
@@ -127,8 +88,7 @@ class TTSService:
             "elapsed_time": round(elapsed, 2),
             "voice": voice_name,
             "speed": effective_speed,
-            "format": target_format,
-            "cached": False
+            "format": target_format
         }
 
 tts_service = TTSService()

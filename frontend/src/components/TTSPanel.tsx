@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Voice, TTSResponse } from '../types';
 import { api } from '../services/api';
 import { AudioPlayer } from './AudioPlayer';
+import { IconAlertTriangle } from './Icons';
 
 interface TTSPanelProps {
   voices: Voice[];
@@ -117,8 +118,9 @@ export const TTSPanel: React.FC<TTSPanelProps> = ({ voices, onGoToVoices }) => {
           </div>
 
           {errorMsg && (
-            <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,107,107,0.15)', border: '1px solid rgba(255,107,107,0.3)', borderRadius: '8px', color: '#ff8c8c', fontSize: '0.9rem' }}>
-              ⚠️ {errorMsg}
+            <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,107,107,0.15)', border: '1px solid rgba(255,107,107,0.3)', borderRadius: '8px', color: '#ff8c8c', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <IconAlertTriangle size={16} color="var(--error-color)" />
+              <span>{errorMsg}</span>
             </div>
           )}
 

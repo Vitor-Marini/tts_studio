@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Voice, BatchJob, CSVInspectResult } from '../types';
 import { api } from '../services/api';
 import { AudioPlayer } from './AudioPlayer';
+import { IconAlertTriangle, IconEdit, IconRefresh, IconInfo } from './Icons';
 
 interface BatchPanelProps {
   voices: Voice[];
@@ -276,9 +277,27 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
 
           {/* Coluna 2: Mapeamento Dinâmico de Colunas e Parâmetros */}
           <div className="right-col glass-panel">
-            <h3 style={{ fontSize: '1.1rem', color: 'var(--text-primary)', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.5rem' }}>
-              Mapeamento de Colunas
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.5rem' }}>
+              <h3 style={{ fontSize: '1.1rem', color: 'var(--text-primary)', margin: 0 }}>
+                Mapeamento de Colunas
+              </h3>
+            </div>
+
+            {/* Instruções diretas e simples de formatação de arquivos */}
+            <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '6px', padding: '0.75rem 0.9rem', fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.4rem', margin: '0.75rem 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                <IconInfo size={14} />
+                <span>Instruções de Formatação dos Arquivos:</span>
+              </div>
+              <ul style={{ paddingLeft: '1.2rem', margin: 0, display: 'flex', flexDirection: 'column', gap: '0.35rem', lineHeight: '1.4' }}>
+                <li>
+                  <strong style={{ color: 'var(--text-primary)' }}>Arquivos TXT:</strong> Texto simples com <u>uma frase por linha</u>. Linhas vazias são ignoradas. O sistema nomeia os áudios automaticamente de forma sequencial (<code>audio_001.mp3</code>, <code>audio_002.mp3</code>...).
+                </li>
+                <li>
+                  <strong style={{ color: 'var(--text-primary)' }}>Arquivos CSV / TSV:</strong> Deve conter cabeçalho na primeira linha. Selecione a coluna com o texto abaixo. A coluna de nomes é opcional (se não houver, selecione <em>Gerar nomes automaticamente</em>).
+                </li>
+              </ul>
+            </div>
 
             {inspectData ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -289,7 +308,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
                     value={filenameCol}
                     onChange={e => setFilenameCol(e.target.value)}
                   >
-                    <option value="__auto__">✨ Gerar automático (audio_001, audio_002...)</option>
+                    <option value="__auto__">Gerar nomes automaticamente (audio_001, audio_002...)</option>
                     {inspectData.columns.map(col => (
                       <option key={col} value={col}>{col}</option>
                     ))}
@@ -357,7 +376,10 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
                 </label>
 
                 {errorMsg && (
-                  <div style={{ color: '#ff8c8c', fontSize: '0.85rem' }}>⚠️ {errorMsg}</div>
+                  <div style={{ color: '#ff8c8c', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <IconAlertTriangle size={14} color="var(--error-color)" />
+                    <span>{errorMsg}</span>
+                  </div>
                 )}
 
                 <button
@@ -371,7 +393,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
               </div>
             ) : (
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                Faça o upload de um CSV ao lado para mapear as colunas de nome e texto.
+                Faça o upload de um arquivo CSV ou TXT ao lado para configurar os parâmetros de locução.
               </p>
             )}
           </div>
@@ -490,8 +512,9 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
                             placeholder="Texto da frase..."
                           />
                           {isModified && (
-                            <span style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', fontWeight: 500 }}>
-                              ✏️ Texto alterado · clique em <strong>Regerar</strong> para aplicar
+                            <span style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <IconEdit size={12} />
+                              <span>Texto alterado · clique em <strong>Regerar</strong> para aplicar</span>
                             </span>
                           )}
                         </div>
@@ -532,7 +555,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
                               fontSize: '0.75rem',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '0.3rem',
+                              gap: '0.35rem',
                               borderColor: isModified ? 'var(--accent-primary)' : 'rgba(255,107,0,0.4)',
                               background: isModified ? 'rgba(255,107,0,0.15)' : 'transparent',
                               color: 'var(--accent-primary)',
@@ -550,7 +573,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
                               </>
                             ) : (
                               <>
-                                <span>🔄</span>
+                                <IconRefresh size={12} />
                                 <span>Regerar</span>
                               </>
                             )}

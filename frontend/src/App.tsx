@@ -5,6 +5,7 @@ import { TTSPanel } from './components/TTSPanel';
 import { BatchPanel } from './components/BatchPanel';
 import { VoicePanel } from './components/VoicePanel';
 import { ArchivePanel } from './components/ArchivePanel';
+import { IconSpeaker } from './components/Icons';
 import './App.css';
 
 export const App: React.FC = () => {
@@ -29,7 +30,9 @@ export const App: React.FC = () => {
       {/* Barra Lateral de Navegação */}
       <aside className="sidebar">
         <div className="logo-area">
-          <div className="logo-icon">🔊</div>
+          <div className="logo-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <IconSpeaker size={22} color="var(--accent-primary)" />
+          </div>
           <h1 className="logo-text">TTS<span>Studio</span></h1>
         </div>
 
@@ -86,20 +89,20 @@ export const App: React.FC = () => {
         </nav>
       </aside>
 
-      {/* Conteúdo Principal */}
+      {/* Conteúdo Principal com Preservação de Estado entre Abas (Keep-Alive) */}
       <main className="main-content">
-        {activeTab === 'tts' && (
+        <div style={{ display: activeTab === 'tts' ? 'flex' : 'none', flexDirection: 'column', height: '100%', flex: 1, overflow: 'hidden' }}>
           <TTSPanel voices={voices} onGoToVoices={() => setActiveTab('voices')} />
-        )}
-        {activeTab === 'batch' && (
+        </div>
+        <div style={{ display: activeTab === 'batch' ? 'flex' : 'none', flexDirection: 'column', height: '100%', flex: 1, overflow: 'hidden' }}>
           <BatchPanel voices={voices} />
-        )}
-        {activeTab === 'voices' && (
+        </div>
+        <div style={{ display: activeTab === 'voices' ? 'flex' : 'none', flexDirection: 'column', height: '100%', flex: 1, overflow: 'hidden' }}>
           <VoicePanel voices={voices} onRefresh={fetchVoices} />
-        )}
-        {activeTab === 'archive' && (
+        </div>
+        <div style={{ display: activeTab === 'archive' ? 'flex' : 'none', flexDirection: 'column', height: '100%', flex: 1, overflow: 'hidden' }}>
           <ArchivePanel />
-        )}
+        </div>
       </main>
     </div>
   );

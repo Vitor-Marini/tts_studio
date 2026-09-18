@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Voice } from '../types';
 import { api } from '../services/api';
 import { AudioPlayer } from './AudioPlayer';
+import { IconMic, IconAlertTriangle, IconEdit, IconX } from './Icons';
 
 interface VoicePanelProps {
   voices: Voice[];
@@ -127,7 +128,10 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ voices, onRefresh }) => 
             }}
             onClick={e => e.stopPropagation()}
           >
-            <h3 style={{ fontSize: '1.3rem', marginBottom: '0.5rem', color: '#fff' }}>🎤 Cadastrar Nova Voz</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
+              <IconMic size={22} color="var(--accent-primary)" />
+              <h3 style={{ fontSize: '1.3rem', color: '#fff', margin: 0 }}>Cadastrar Nova Voz</h3>
+            </div>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
               Envie um ou mais áudios de referência. Múltiplos áudios resultam em uma clonagem mais estável.
             </p>
@@ -200,8 +204,9 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ voices, onRefresh }) => 
               </div>
 
               {errorMsg && (
-                <div style={{ color: '#ff8c8c', fontSize: '0.85rem' }}>
-                  ⚠️ {errorMsg}
+                <div style={{ color: '#ff8c8c', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <IconAlertTriangle size={14} color="var(--error-color)" />
+                  <span>{errorMsg}</span>
                 </div>
               )}
 
@@ -209,7 +214,7 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ voices, onRefresh }) => 
                 <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowCreateModal(false)}>
                   Cancelar
                 </button>
-                <button type="submit" className="btn-primary" style={{ flex: 2 }} disabled={isSubmitting}>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }} disabled={isSubmitting}>
                   {isSubmitting ? 'Salvando...' : 'Salvar Voz'}
                 </button>
               </div>
@@ -218,25 +223,18 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ voices, onRefresh }) => 
         </div>
       )}
 
-      {/* Lista de Vozes */}
+      {/* Lista de Vozes Cadastradas */}
       {voices.length === 0 ? (
-        <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-            Nenhuma voz cadastrada.
-          </p>
-          <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
-            Criar Minha Primeira Voz
-          </button>
+        <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          <p>Nenhuma voz cadastrada. Clique no botão acima para criar sua primeira voz clonada.</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
           {voices.map(voice => (
             <div key={voice.name} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <h3 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
-                    {voice.name}
-                  </h3>
+                  <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '0.2rem' }}>{voice.name}</h3>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                     Cadastrada em {new Date(voice.created_at).toLocaleDateString('pt-BR')}
                   </span>
@@ -245,17 +243,16 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ voices, onRefresh }) => 
                   className="btn-danger"
                   style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
                   onClick={() => handleDeleteVoice(voice.name)}
-                  title="Excluir voz"
                 >
                   Excluir Voz
                 </button>
               </div>
 
               {/* Velocidade Padrão */}
-              <div style={{ padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem 1rem', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Velocidade Padrão:</span>
                 {editingSpeedVoice === voice.name ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                     <input
                       type="number"
                       step="0.05"
@@ -268,22 +265,22 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ voices, onRefresh }) => 
                     <button className="btn-primary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }} onClick={() => handleSaveSpeed(voice.name)}>
                       OK
                     </button>
-                    <button className="btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }} onClick={() => setEditingSpeedVoice(null)}>
-                      ✕
+                    <button className="btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center' }} onClick={() => setEditingSpeedVoice(null)}>
+                      <IconX size={12} />
                     </button>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <strong style={{ color: 'var(--accent-primary)', fontSize: '0.9rem' }}>{voice.default_speed}x</strong>
                     <button
-                      style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.8rem' }}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                       onClick={() => {
                         setEditingSpeedVoice(voice.name);
                         setTempSpeed(voice.default_speed);
                       }}
                       title="Editar velocidade"
                     >
-                      ✏️
+                      <IconEdit size={14} />
                     </button>
                   </div>
                 )}
@@ -335,10 +332,10 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({ voices, onRefresh }) => 
                           </span>
                           <button
                             onClick={() => handleDeleteSample(voice.name, sample.filename)}
-                            style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontSize: '0.75rem', opacity: 0.7 }}
+                            style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: 0.7 }}
                             title="Remover amostra"
                           >
-                            ✕
+                            <IconX size={12} />
                           </button>
                         </div>
                         <AudioPlayer src={sample.url} fileName={sample.filename} />
