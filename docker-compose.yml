@@ -1,0 +1,33 @@
+services:
+  tts-studio:
+    build: .
+    image: tts-studio:latest
+    container_name: tts-studio
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DEVICE=cuda          # Fallback automático para CPU caso CUDA não esteja disponível
+      - MAX_STORAGE_MB=5120  # Limite máximo de armazenamento (5GB padrão)
+      - COQUI_TOS_AGREED=1
+    volumes:
+      # Persistência de vozes, áudios gerados, lotes e modelos baixados
+      - tts_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # Para habilitar GPU NVIDIA com o NVIDIA Container Toolkit instalado, descomente:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+volumes:
+  tts_data:
+    name: tts_studio_data
