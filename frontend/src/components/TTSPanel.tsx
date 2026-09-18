@@ -114,8 +114,8 @@ export const TTSPanel: React.FC<TTSPanelProps> = ({ voices, onGoToVoices }) => {
                     onChange={e => setFormat(e.target.value)}
                     disabled={isGenerating}
                   >
-                    <option value="mp3">.MP3 (Compacto)</option>
-                    <option value="wav">.WAV (Sem Perdas)</option>
+                    <option value="mp3">.mp3</option>
+                    <option value="wav">.wav</option>
                   </select>
                 </div>
 
@@ -161,14 +161,14 @@ export const TTSPanel: React.FC<TTSPanelProps> = ({ voices, onGoToVoices }) => {
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polygon points="5 3 19 12 5 21 5 3" />
                     </svg>
-                    <span>Gerar Tomada de Áudio</span>
+                    <span>Gerar Áudio</span>
                   </>
                 )}
               </button>
             </div>
           </div>
 
-          {/* Card 2: Histórico de Tomadas Geradas */}
+          {/* Card 2: Histórico de Áudios Gerados */}
           <div className="card">
             <div className="card-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -177,18 +177,18 @@ export const TTSPanel: React.FC<TTSPanelProps> = ({ voices, onGoToVoices }) => {
                     <circle cx="12" cy="12" r="10" />
                     <polyline points="12 6 12 12 16 14" />
                   </svg>
-                  Tomadas Desta Sessão
+                  Áudios Desta Sessão
                 </h3>
                 <span className="badge badge-pending">{history.length}</span>
               </div>
-              <p className="card-subtitle">Cada geração produz uma variação estocástica única</p>
+              <p className="card-subtitle">Histórico dos áudios gerados nesta sessão</p>
             </div>
 
             <div className="card-body">
               {history.length === 0 ? (
                 <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                   <p style={{ fontSize: '0.9rem', fontStyle: 'italic', margin: 0 }}>
-                    Nenhuma tomada gerada ainda nesta sessão. Digite uma frase acima e clique em Gerar.
+                    Nenhum áudio gerado ainda nesta sessão. Digite uma frase acima e clique em Gerar Áudio.
                   </p>
                 </div>
               ) : (
@@ -209,7 +209,7 @@ export const TTSPanel: React.FC<TTSPanelProps> = ({ voices, onGoToVoices }) => {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span className="badge badge-completed" style={{ fontSize: '0.7rem' }}>
-                            Take #{history.length - idx}
+                            Áudio #{history.length - idx}
                           </span>
                           <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                             {item.filename}
@@ -277,7 +277,7 @@ export const TTSPanel: React.FC<TTSPanelProps> = ({ voices, onGoToVoices }) => {
                   >
                     {voices.map(v => (
                       <option key={v.name} value={v.name}>
-                        {v.name} ({v.samples.length} referência{v.samples.length !== 1 ? 's' : ''})
+                        {v.name}
                       </option>
                     ))}
                   </select>

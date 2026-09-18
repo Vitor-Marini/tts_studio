@@ -381,8 +381,8 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
                       <div className="form-group">
                         <label>Formato</label>
                         <select className="input-base" value={format} onChange={e => setFormat(e.target.value)}>
-                          <option value="mp3">.MP3</option>
-                          <option value="wav">.WAV</option>
+                          <option value="mp3">.mp3</option>
+                          <option value="wav">.wav</option>
                         </select>
                       </div>
 
@@ -408,7 +408,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
                         checked={skipExisting}
                         onChange={e => setSkipExisting(e.target.checked)}
                       />
-                      <span>Pular áudios já gerados (Retomada rápida)</span>
+                      <span>Pular áudios já gerados</span>
                     </label>
 
                     {errorMsg && (
@@ -523,7 +523,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
                     <th style={{ width: '160px' }}>Arquivo</th>
                     <th>Texto (Editável para Fine-Tuning)</th>
                     <th style={{ width: '110px' }}>Status</th>
-                    <th style={{ width: '310px' }}>Áudio & Regeração</th>
+                    <th style={{ width: '390px' }}>Áudio & Regeração</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -573,8 +573,8 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
                         </td>
 
                         {/* Célula de Áudio e Botão Regerar */}
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <td style={{ width: '390px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               {(item.status === 'completed' || item.status === 'skipped') && (
                                 <AudioPlayer

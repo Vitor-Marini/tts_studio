@@ -102,7 +102,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, fileName, autoPla
       <div className="progress-container">
         <div className="time-display">
           <span>{currentTime}</span>
-          <span>{duration}</span>
+          <span style={{ marginLeft: 'auto' }}>{duration}</span>
         </div>
         <div className="progress-bar" onClick={handleProgressClick}>
           <div className="progress-fill" style={{ width: `${progress}%` }}></div>
