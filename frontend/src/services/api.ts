@@ -1,4 +1,4 @@
-import { Voice, TTSResponse, BatchJob, AudioFileItem, CSVInspectResult } from '../types';
+import { Voice, TTSResponse, BatchJob, AudioFileItem, CSVInspectResult, StorageStats, BatchSummary } from '../types';
 
 export const api = {
   // Vozes
@@ -183,5 +183,25 @@ export const api = {
     });
     if (!res.ok) throw new Error('Erro ao baixar ZIP');
     return res.blob();
+  },
+
+  // Armazenamento e Histórico de Lotes
+  async getStorageStats(): Promise<StorageStats> {
+    const res = await fetch('/api/storage/stats');
+    if (!res.ok) throw new Error('Erro ao obter estatísticas de armazenamento');
+    return res.json();
+  },
+
+  async listBatches(): Promise<BatchSummary[]> {
+    const res = await fetch('/api/batch/history');
+    if (!res.ok) throw new Error('Erro ao listar histórico de lotes');
+    return res.json();
+  },
+
+  async deleteBatch(batchId: string): Promise<void> {
+    const res = await fetch(`/api/batch/${encodeURIComponent(batchId)}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Erro ao excluir lote');
   },
 };

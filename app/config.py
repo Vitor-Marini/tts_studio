@@ -36,8 +36,15 @@ class Settings(BaseSettings):
         return self.DATA_DIR / "batches"
 
     @property
+    def CACHE_DIR(self) -> Path:
+        return self.DATA_DIR / "cache"
+
+    @property
     def STATIC_DIR(self) -> Path:
         return self.BASE_DIR / "app" / "static"
+
+    # Configurações de Armazenamento e Limite de Disco (padrão: 5GB / 5120MB)
+    MAX_STORAGE_MB: int = int(os.getenv("MAX_STORAGE_MB", "5120"))
 
     # Configurações do Modelo
     MODEL_NAME: str = "tts_models/multilingual/multi-dataset/xtts_v2"
@@ -58,6 +65,7 @@ class Settings(BaseSettings):
         self.VOICES_DIR.mkdir(parents=True, exist_ok=True)
         self.OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
         self.BATCHES_DIR.mkdir(parents=True, exist_ok=True)
+        self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
         self.STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
 settings = Settings()

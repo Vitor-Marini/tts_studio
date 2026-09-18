@@ -13,7 +13,8 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.core.engine import engine
 from app.services.voice_service import voice_service
-from app.utils.csv_helper import inspect_csv, sanitize_filename, detect_encoding_and_delimiter
+from app.services.storage_service import storage_service, BatchSummary
+from app.utils.csv_helper import inspect_csv, sanitize_filename, detect_encoding_and_delimiter, detect_encoding
 from app.utils.audio import convert_wav_to_mp3, get_audio_duration
 
 class BatchItem(BaseModel):
@@ -47,10 +48,11 @@ class BatchService:
         self.jobs: Dict[str, BatchJob] = {}
         self.cancel_flags: Dict[str, bool] = {}
 
-    def save_temp_csv(self, content: bytes) -> Dict[str, Any]:
-        """Salva o CSV temporariamente e retorna a análise de colunas e dados."""
+    def save_temp_csv(self, content: bytes, original_filename: str = "") -> Dict[str, Any]:
+        """Salva o CSV ou TXT temporariamente e retorna a análise de colunas e dados."""
         token = uuid.uuid4().hex[:12]
-        temp_path = self.batches_dir / f"temp_{token}.csv"
+        ext = ".txt" if original_filename.lower().endswith(".txt") else ".csv"
+        temp_path = self.batches_dir / f"temp_{token}{ext}"
         with open(temp_path, "wb") as f:
             f.write(content)
 
@@ -70,44 +72,62 @@ class BatchService:
     ) -> BatchJob:
         temp_path = self.batches_dir / f"temp_{token}.csv"
         if not temp_path.exists():
-            raise FileNotFoundError("Arquivo CSV temporário expirado ou não encontrado.")
+            temp_path = self.batches_dir / f"temp_{token}.txt"
+        if not temp_path.exists():
+            raise FileNotFoundError("Arquivo de lote temporário expirado ou não encontrado.")
 
         voice = voice_service.get_voice(voice_name)
         if not voice:
             raise FileNotFoundError(f"Voz '{voice_name}' não encontrada.")
 
         effective_speed = float(speed) if speed is not None else float(voice.default_speed)
-        encoding, delimiter = detect_encoding_and_delimiter(temp_path)
-
         items: List[BatchItem] = []
-        with open(temp_path, "r", encoding=encoding) as f:
-            reader = csv.DictReader(f, delimiter=delimiter)
-            for idx, row in enumerate(reader, start=1):
-                clean_row = {k.strip(): (v.strip() if v else "") for k, v in row.items() if k}
-                raw_filename = clean_row.get(filename_column, f"audio_{idx}")
-                raw_text = clean_row.get(text_column, "")
 
-                if not raw_text:
-                    continue  # Pula linhas sem texto
-
-                sanitized_file = sanitize_filename(raw_filename, target_format=format)
+        if temp_path.suffix.lower() == ".txt":
+            encoding = detect_encoding(temp_path)
+            with open(temp_path, "r", encoding=encoding) as f:
+                lines = [l.strip() for l in f if l.strip()]
+            for idx, line in enumerate(lines, start=1):
+                sanitized_file = sanitize_filename(f"audio_{idx:03d}", target_format=format, fallback_idx=idx)
                 items.append(BatchItem(
                     index=idx,
                     filename=sanitized_file,
-                    text=raw_text,
+                    text=line,
                     status="pending"
                 ))
+        else:
+            encoding, delimiter = detect_encoding_and_delimiter(temp_path)
+            with open(temp_path, "r", encoding=encoding) as f:
+                reader = csv.DictReader(f, delimiter=delimiter)
+                for idx, row in enumerate(reader, start=1):
+                    clean_row = {k.strip(): (v.strip() if v else "") for k, v in row.items() if k}
+                    if filename_column in ["__auto__", "", None, "none", "null"]:
+                        raw_filename = f"audio_{idx:03d}"
+                    else:
+                        raw_filename = clean_row.get(filename_column, f"audio_{idx:03d}")
+                    raw_text = clean_row.get(text_column, "")
+
+                    if not raw_text:
+                        continue  # Pula linhas sem texto
+
+                    sanitized_file = sanitize_filename(raw_filename, target_format=format, fallback_idx=idx)
+                    items.append(BatchItem(
+                        index=idx,
+                        filename=sanitized_file,
+                        text=raw_text,
+                        status="pending"
+                    ))
 
         if not items:
-            raise ValueError("Nenhuma linha com texto válido encontrada no CSV.")
+            raise ValueError("Nenhuma linha com texto válido encontrada no arquivo.")
 
         batch_id = f"batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
         job_dir = self.batches_dir / batch_id
         job_dir.mkdir(parents=True, exist_ok=True)
 
-        # Move o CSV para a pasta do lote
-        csv_dest = job_dir / "input.csv"
-        temp_path.rename(csv_dest)
+        # Move o arquivo para a pasta do lote
+        file_dest = job_dir / f"input{temp_path.suffix}"
+        temp_path.rename(file_dest)
 
         job = BatchJob(
             id=batch_id,
@@ -240,6 +260,12 @@ class BatchService:
             for audio_file in audios_dir.iterdir():
                 if audio_file.is_file():
                     zf.write(audio_file, audio_file.name)
+
+        # Garante o limite de armazenamento em disco
+        try:
+            storage_service.enforce_storage_limit()
+        except Exception:
+            pass
 
     def cancel_batch(self, batch_id: str) -> bool:
         if batch_id in self.jobs and self.jobs[batch_id].status == "running":
@@ -391,5 +417,15 @@ class BatchService:
         if zip_path.exists():
             return zip_path
         return None
+
+    def list_batches(self) -> List[BatchSummary]:
+        """Retorna histórico de lotes armazenados."""
+        return storage_service.list_batches()
+
+    def delete_batch(self, batch_id: str) -> bool:
+        """Exclui um lote da memória e do disco."""
+        if batch_id in self.jobs:
+            del self.jobs[batch_id]
+        return storage_service.delete_batch(batch_id)
 
 batch_service = BatchService()

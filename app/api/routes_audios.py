@@ -10,8 +10,13 @@ from pydantic import BaseModel
 from typing import List
 
 from app.config import settings
+from app.services.storage_service import storage_service, StorageStats
 
 router = APIRouter(prefix="/api", tags=["Audios"])
+
+@router.get("/storage/stats", response_model=StorageStats, tags=["Storage"])
+async def get_storage_stats():
+    return storage_service.get_storage_stats()
 
 class AudioItem(BaseModel):
     filename: str

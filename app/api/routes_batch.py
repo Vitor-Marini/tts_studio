@@ -22,12 +22,12 @@ class StartBatchRequest(BaseModel):
 @router.post("/inspect")
 async def inspect_batch_csv(file: UploadFile = File(...)):
     if not file.filename.lower().endswith((".csv", ".tsv", ".txt")):
-        raise HTTPException(status_code=400, detail="O arquivo deve ser um CSV (.csv).")
+        raise HTTPException(status_code=400, detail="O arquivo deve ser um CSV (.csv) ou lista em TXT (.txt).")
     try:
         content = await file.read()
-        return batch_service.save_temp_csv(content)
+        return batch_service.save_temp_csv(content, original_filename=file.filename)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao processar CSV: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao processar arquivo: {str(e)}")
 
 @router.post("/start", response_model=BatchJob)
 async def start_batch(req: StartBatchRequest):
@@ -48,12 +48,23 @@ async def start_batch(req: StartBatchRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao iniciar processamento em lote: {str(e)}")
 
+@router.get("/history")
+async def list_batch_history():
+    return batch_service.list_batches()
+
 @router.get("/{batch_id}", response_model=BatchJob)
 async def get_batch_status(batch_id: str):
     job = batch_service.get_job(batch_id)
     if not job:
         raise HTTPException(status_code=404, detail=f"Lote '{batch_id}' não encontrado.")
     return job
+
+@router.delete("/{batch_id}")
+async def delete_batch(batch_id: str):
+    success = batch_service.delete_batch(batch_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Lote '{batch_id}' não encontrado.")
+    return {"status": "success", "message": f"Lote '{batch_id}' excluído com sucesso."}
 
 @router.post("/{batch_id}/cancel")
 async def cancel_batch(batch_id: str):

@@ -48,18 +48,23 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
       const data = await api.inspectCSV(file);
       setInspectData(data);
 
-      // Auto-detecção inteligente de colunas comuns
-      const lowerCols = data.columns.map(c => c.toLowerCase());
-      const fIdx = lowerCols.findIndex(c => c.includes('file') || c.includes('nome') || c.includes('audio') || c.includes('name'));
-      const tIdx = lowerCols.findIndex(c => c.includes('text') || c.includes('texto') || c.includes('portuguese') || c.includes('frase') || c.includes('sentence') || c.includes('prompt'));
+      if (data.is_txt || data.columns.length === 1) {
+        setTextCol(data.columns[0]);
+        setFilenameCol('__auto__');
+      } else {
+        // Auto-detecção inteligente de colunas comuns
+        const lowerCols = data.columns.map(c => c.toLowerCase());
+        const fIdx = lowerCols.findIndex(c => c.includes('file') || c.includes('nome') || c.includes('audio') || c.includes('name'));
+        const tIdx = lowerCols.findIndex(c => c.includes('text') || c.includes('texto') || c.includes('portuguese') || c.includes('frase') || c.includes('sentence') || c.includes('prompt'));
 
-      if (fIdx !== -1) setFilenameCol(data.columns[fIdx]);
-      else if (data.columns.length > 0) setFilenameCol(data.columns[0]);
+        if (fIdx !== -1) setFilenameCol(data.columns[fIdx]);
+        else setFilenameCol('__auto__');
 
-      if (tIdx !== -1) setTextCol(data.columns[tIdx]);
-      else if (data.columns.length > 1) setTextCol(data.columns[1]);
+        if (tIdx !== -1) setTextCol(data.columns[tIdx]);
+        else if (data.columns.length > 1) setTextCol(data.columns[1]);
+      }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Falha ao ler o arquivo CSV.');
+      setErrorMsg(err.message || 'Falha ao ler o arquivo.');
       setCsvFile(null);
       setInspectData(null);
     } finally {
@@ -68,8 +73,8 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
   };
 
   const handleStartBatch = async () => {
-    if (!inspectData || !filenameCol || !textCol || !selectedVoice) {
-      setErrorMsg('Preencha todas as configurações de colunas e selecione uma voz.');
+    if (!inspectData || !textCol || !selectedVoice) {
+      setErrorMsg('Selecione a coluna de texto e uma voz para iniciar.');
       return;
     }
 
@@ -79,7 +84,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
       const job = await api.startBatch({
         token: inspectData.token,
         voice: selectedVoice,
-        filename_column: filenameCol,
+        filename_column: filenameCol || '__auto__',
         text_column: textCol,
         format,
         speed,
@@ -190,7 +195,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
                 <input
                   id="csv-upload-input"
                   type="file"
-                  accept=".csv,.txt,.tsv"
+                  accept=".csv,.tsv,.txt"
                   style={{ display: 'none' }}
                   onChange={e => {
                     if (e.target.files && e.target.files[0]) {
@@ -206,14 +211,14 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
                   <polyline points="10 9 9 9 8 9" />
                 </svg>
                 {isInspecting ? (
-                  <p style={{ color: 'var(--text-secondary)' }}>Analisando colunas do CSV...</p>
+                  <p style={{ color: 'var(--text-secondary)' }}>Analisando colunas do arquivo...</p>
                 ) : (
                   <>
                     <p style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      Arraste seu arquivo CSV aqui
+                      Arraste seu arquivo CSV ou TXT aqui
                     </p>
                     <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      ou clique para selecionar do computador
+                      ou clique para selecionar (.csv, .tsv ou .txt com uma frase por linha)
                     </span>
                   </>
                 )}
@@ -224,7 +229,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
                   <div>
                     <h3 style={{ fontSize: '1.1rem', color: 'var(--text-primary)' }}>{csvFile?.name}</h3>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      {inspectData.total_rows} frases detectadas · Separador: <strong>&apos;{inspectData.delimiter}&apos;</strong> · Encoding: <strong>{inspectData.encoding}</strong>
+                      {inspectData.total_rows} frases detectadas · {inspectData.is_txt ? 'Formato: Lista TXT' : `Separador: '${inspectData.delimiter}'`} · Encoding: <strong>{inspectData.encoding}</strong>
                     </span>
                   </div>
                   <button className="btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} onClick={handleReset}>
@@ -240,6 +245,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
                       <thead>
                         <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'var(--accent-primary)' }}>
+                          {filenameCol === '__auto__' && <th style={{ padding: '0.6rem 0.8rem' }}>Nome Gerado</th>}
                           {inspectData.columns.map(c => (
                             <th key={c} style={{ padding: '0.6rem 0.8rem' }}>{c}</th>
                           ))}
@@ -248,6 +254,11 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
                       <tbody>
                         {inspectData.preview.map((row, i) => (
                           <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                            {filenameCol === '__auto__' && (
+                              <td style={{ padding: '0.6rem 0.8rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                                audio_{String(i + 1).padStart(3, '0')}.{format}
+                              </td>
+                            )}
                             {inspectData.columns.map(c => (
                               <td key={c} style={{ padding: '0.6rem 0.8rem', color: 'var(--text-secondary)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {row[c]}
@@ -278,6 +289,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = ({ voices }) => {
                     value={filenameCol}
                     onChange={e => setFilenameCol(e.target.value)}
                   >
+                    <option value="__auto__">✨ Gerar automático (audio_001, audio_002...)</option>
                     {inspectData.columns.map(col => (
                       <option key={col} value={col}>{col}</option>
                     ))}
