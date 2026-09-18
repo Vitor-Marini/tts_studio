@@ -28,10 +28,13 @@ Thumbs.db
 logs/
 
 # Data (montado como volume)
+data/
 api-backend/outputs/
 api-backend/voices/
 api-backend/presets/
 api-backend/models/
+frontend/node_modules/
+frontend/dist/
 
 # Docker artifacts
 *.tar.gz

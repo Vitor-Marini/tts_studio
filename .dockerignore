@@ -1,49 +1,17 @@
-# Git
-.git
-.gitignore
-
-# Python
 __pycache__
 *.pyc
 *.pyo
 *.pyd
 .Python
+env/
 venv/
 .venv/
-*.egg-info/
-
-# Node
-web-app/node_modules/
-web-app/.next/
-web-app/.npm
-
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-logs/
-
-# Data (montado como volume)
-api-backend/outputs/
-api-backend/voices/
-api-backend/presets/
-api-backend/models/
-
-# Docker
-docker-compose.yml
-docker-compose.yaml
-*.tar.gz
-
-# Docs
-docs/
-.github/
-LICENSE
+_OLD_*/
+data/
+node_modules/
+frontend/node_modules/
+.git
+.gitignore
+.vscode
 README.md
+WHATSAPP_BOT.md
